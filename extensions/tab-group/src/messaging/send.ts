@@ -1,6 +1,12 @@
 import { browser } from 'wxt/browser';
 import type { Request, Response } from './schema';
 
-export async function sendRequest(request: Request): Promise<Response> {
-  return (await browser.runtime.sendMessage(request)) as Response;
+type ResponseFor<R extends Request> = R['type'] extends 'SAVE_AND_CLOSE' | 'SAVE_WITHOUT_CLOSING'
+  ? Extract<Response, { type: 'SAVED' | 'ERROR' }>
+  : R['type'] extends 'SEARCH'
+    ? Extract<Response, { type: 'SEARCH_RESULT' | 'ERROR' }>
+    : Response;
+
+export async function sendRequest<R extends Request>(request: R): Promise<ResponseFor<R>> {
+  return (await browser.runtime.sendMessage(request)) as ResponseFor<R>;
 }

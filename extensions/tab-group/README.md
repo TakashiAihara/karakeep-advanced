@@ -45,6 +45,13 @@ Default keys (configurable in `chrome://extensions/shortcuts`):
 
 Result is announced via a desktop notification (`Saved M/N → <subListName>`); errors are also notified.
 
+## Manual smoke test for PR4 (search & restore)
+
+1. In the popup, switch to the **Search** tab.
+2. Type a query &mdash; results stream in after a short debounce.
+3. Click or press Enter on a hit &rarr; opens the URL in a new active tab and closes the popup.
+4. Hold Cmd (mac) / Ctrl (other) while hitting Enter / clicking &rarr; opens in a background tab; the popup stays open.
+
 ## Status
 
-PR3 (popup save flow + keyboard shortcuts). Search, recent groups list, and OneTab import land in later PRs &mdash; see the design doc.
+PR4 (popup save + keyboard shortcuts + bookmark search/restore). Recent groups list and OneTab import land in later PRs &mdash; see the design doc.
