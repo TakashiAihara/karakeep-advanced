@@ -142,6 +142,49 @@
   font-size: 12px;
 }
 
+.popup .import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup .import-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.popup .import-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+.popup .import-textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.popup .import .row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (prefers-color-scheme: dark) {
+  .popup .import-textarea {
+    border-color: #3f3f46;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   .popup .tabs {
     border-bottom-color: #3f3f46;

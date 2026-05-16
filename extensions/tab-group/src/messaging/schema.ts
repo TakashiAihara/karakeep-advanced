@@ -27,16 +27,29 @@ export type GroupSummary = {
   tabCount: number | null;
 };
 
+export type ImportFailure = {
+  url: string;
+  reason: string;
+};
+
+export type ImportSummary = {
+  groupsImported: number;
+  bookmarksCreated: number;
+  failed: ImportFailure[];
+};
+
 export type Request =
   | { type: 'SAVE_AND_CLOSE'; scope: SaveScope }
   | { type: 'SAVE_WITHOUT_CLOSING'; scope: SaveScope }
   | { type: 'SEARCH'; q: string; cursor?: string }
   | { type: 'LIST_RECENT_GROUPS'; limit?: number }
-  | { type: 'OPEN_GROUP'; listId: string };
+  | { type: 'OPEN_GROUP'; listId: string }
+  | { type: 'IMPORT_ONETAB'; text: string };
 
 export type Response =
   | { type: 'SAVED'; result: SaveResult }
   | { type: 'SEARCH_RESULT'; hits: SearchHit[]; nextCursor: string | null }
   | { type: 'RECENT_GROUPS'; groups: GroupSummary[] }
   | { type: 'OPENED'; opened: number; total: number }
+  | { type: 'IMPORTED'; summary: ImportSummary }
   | { type: 'ERROR'; message: string; code?: 'UNCONFIGURED' | 'NO_TABS' | 'KARAKEEP' };

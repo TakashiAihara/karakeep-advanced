@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { configureKarakeep } from '@/src/karakeep/client';
+import { importOneTabExport } from '@/src/karakeep/flows/import-onetab';
 import { listRecentGroups } from '@/src/karakeep/flows/list-recent-groups';
 import { openGroup } from '@/src/karakeep/flows/open-group';
 import { saveTabsAsGroup } from '@/src/karakeep/flows/save-tabs-as-group';
@@ -62,6 +63,19 @@ export async function handle(request: Request): Promise<Response> {
     try {
       const result = await openGroup(request.listId);
       return { type: 'OPENED', opened: result.opened, total: result.total };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  if (request.type === 'IMPORT_ONETAB') {
+    try {
+      const summary = await importOneTabExport(request.text);
+      return { type: 'IMPORTED', summary };
     } catch (err) {
       return {
         type: 'ERROR',
