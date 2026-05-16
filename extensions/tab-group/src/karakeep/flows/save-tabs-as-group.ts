@@ -2,8 +2,9 @@ import { browser } from 'wxt/browser';
 import { ensureTabGroupsList } from './ensure-tab-groups-list';
 import { getKarakeep } from '@/src/karakeep/client';
 import type { SaveError, SaveResult, SaveScope } from '@/src/messaging/schema';
-import { recentGroupIdsItem } from '@/src/storage/items';
+import { excludePinnedItem, recentGroupIdsItem } from '@/src/storage/items';
 import { mapWithConcurrency } from '@/src/util/concurrency';
+import { selectSaveableTabs } from '@/src/util/saveable-tabs';
 
 const SUB_LIST_ICON = '📑';
 const SOURCE = 'extension' as const;
@@ -17,19 +18,12 @@ function formatTimestamp(d: Date): string {
   )}:${pad(d.getMinutes())}`;
 }
 
-function isSaveableTab(tab: { url?: string }): boolean {
-  return typeof tab.url === 'string' && /^https?:\/\//i.test(tab.url);
-}
-
 async function selectTabs(scope: SaveScope) {
-  const tabs = (await browser.tabs.query({ currentWindow: true })).filter(isSaveableTab);
-  if (scope === 'all') return tabs;
-  if (scope === 'others') return tabs.filter((t) => !t.active);
-  if (scope === 'selected') {
-    const highlighted = tabs.filter((t) => t.highlighted);
-    return highlighted.length > 0 ? highlighted : tabs.filter((t) => t.active);
-  }
-  return tabs;
+  const [allTabs, excludePinned] = await Promise.all([
+    browser.tabs.query({ currentWindow: true }),
+    excludePinnedItem.getValue(),
+  ]);
+  return selectSaveableTabs(allTabs, scope, { excludePinned });
 }
 
 async function pushRecentGroup(subListId: string): Promise<void> {

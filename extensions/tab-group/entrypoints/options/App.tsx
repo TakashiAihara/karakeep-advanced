@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { checkConnection } from '@/src/karakeep/client';
-import { apiKeyItem, serverUrlItem } from '@/src/storage/items';
+import { apiKeyItem, excludePinnedItem, serverUrlItem } from '@/src/storage/items';
 
 type Status =
   | { kind: 'idle' }
@@ -28,14 +28,25 @@ async function ensureHostPermission(serverUrl: string): Promise<boolean> {
 export default function App() {
   const [serverUrl, setServerUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [excludePinned, setExcludePinned] = useState(true);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
   useEffect(() => {
-    void Promise.all([serverUrlItem.getValue(), apiKeyItem.getValue()]).then(([s, k]) => {
+    void Promise.all([
+      serverUrlItem.getValue(),
+      apiKeyItem.getValue(),
+      excludePinnedItem.getValue(),
+    ]).then(([s, k, p]) => {
       setServerUrl(s);
       setApiKey(k);
+      setExcludePinned(p);
     });
   }, []);
+
+  async function handleExcludePinnedChange(next: boolean) {
+    setExcludePinned(next);
+    await excludePinnedItem.setValue(next);
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -141,6 +152,19 @@ export default function App() {
         {status.kind === 'success' && <div className="status success">{status.message}</div>}
         {status.kind === 'error' && <div className="status error">{status.message}</div>}
       </form>
+
+      <section className="prefs">
+        <h2>Preferences</h2>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={excludePinned}
+            onChange={(e) => void handleExcludePinnedChange(e.target.checked)}
+          />
+          Exclude pinned tabs from saves
+          <small>OneTab-compatible default. Uncheck to include pinned tabs.</small>
+        </label>
+      </section>
     </main>
   );
 }

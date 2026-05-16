@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { browser } from 'wxt/browser';
 import ImportPanel from './components/ImportPanel';
 import RecentGroupsPanel from './components/RecentGroupsPanel';
 import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
-import type { SaveResult } from '@/src/messaging/schema';
-import { apiKeyItem, serverUrlItem } from '@/src/storage/items';
+import type { SaveResult, SaveScope } from '@/src/messaging/schema';
+import { apiKeyItem, excludePinnedItem, serverUrlItem } from '@/src/storage/items';
+import { selectSaveableTabs, type CandidateTab } from '@/src/util/saveable-tabs';
 import './App.css';
 
 type View = 'save' | 'recent' | 'search' | 'import';
@@ -19,38 +20,58 @@ type SaveUi =
 type ReadyState =
   | { kind: 'loading' }
   | { kind: 'unconfigured' }
-  | { kind: 'ready'; tabCount: number };
+  | {
+      kind: 'ready';
+      tabs: CandidateTab[];
+      excludePinned: boolean;
+    };
 
-function isSaveable(tab: { url?: string }): boolean {
-  return typeof tab.url === 'string' && /^https?:\/\//i.test(tab.url);
-}
+const SCOPE_LABELS: Record<SaveScope, string> = {
+  all: 'All',
+  others: 'Others',
+  selected: 'Selected',
+};
+
+const SCOPE_ORDER: SaveScope[] = ['all', 'others', 'selected'];
 
 export default function App() {
   const [view, setView] = useState<View>('save');
   const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
+  const [scope, setScope] = useState<SaveScope>('all');
   const [save, setSave] = useState<SaveUi>({ kind: 'idle' });
 
   useEffect(() => {
     void (async () => {
-      const [serverUrl, apiKey, tabs] = await Promise.all([
+      const [serverUrl, apiKey, tabs, excludePinned] = await Promise.all([
         serverUrlItem.getValue(),
         apiKeyItem.getValue(),
         browser.tabs.query({ currentWindow: true }),
+        excludePinnedItem.getValue(),
       ]);
       if (!serverUrl || !apiKey) {
         setReady({ kind: 'unconfigured' });
         return;
       }
-      setReady({ kind: 'ready', tabCount: tabs.filter(isSaveable).length });
+      setReady({ kind: 'ready', tabs, excludePinned });
     })();
   }, []);
+
+  const counts = useMemo(() => {
+    if (ready.kind !== 'ready') return { all: 0, others: 0, selected: 0 };
+    const opts = { excludePinned: ready.excludePinned };
+    return {
+      all: selectSaveableTabs(ready.tabs, 'all', opts).length,
+      others: selectSaveableTabs(ready.tabs, 'others', opts).length,
+      selected: selectSaveableTabs(ready.tabs, 'selected', opts).length,
+    };
+  }, [ready]);
 
   async function runSave(close: boolean) {
     setSave({ kind: 'saving' });
     const response = await sendRequest(
       close
-        ? { type: 'SAVE_AND_CLOSE', scope: 'all' }
-        : { type: 'SAVE_WITHOUT_CLOSING', scope: 'all' },
+        ? { type: 'SAVE_AND_CLOSE', scope }
+        : { type: 'SAVE_WITHOUT_CLOSING', scope },
     );
     if (response.type === 'SAVED') {
       setSave({ kind: 'success', result: response.result, closed: close });
@@ -76,6 +97,8 @@ export default function App() {
       </main>
     );
   }
+
+  const currentCount = counts[scope];
 
   return (
     <main className="popup">
@@ -132,26 +155,45 @@ export default function App() {
 
       {view === 'save' && (
         <>
+          <div className="scope" role="radiogroup" aria-label="Scope">
+            {SCOPE_ORDER.map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="radio"
+                aria-checked={scope === s}
+                className={scope === s ? 'scope-item active' : 'scope-item'}
+                onClick={() => setScope(s)}
+              >
+                {SCOPE_LABELS[s]} <span className="muted">({counts[s]})</span>
+              </button>
+            ))}
+          </div>
+
           <p className="count">
-            {ready.tabCount} saveable tab{ready.tabCount === 1 ? '' : 's'} in this window
+            {currentCount} {SCOPE_LABELS[scope].toLowerCase()} tab
+            {currentCount === 1 ? '' : 's'} will be saved
+            {ready.excludePinned ? ' · pinned excluded' : ''}
           </p>
+
           <div className="actions">
             <button
               type="button"
               onClick={() => runSave(true)}
-              disabled={save.kind === 'saving' || ready.tabCount === 0}
+              disabled={save.kind === 'saving' || currentCount === 0}
             >
-              {save.kind === 'saving' ? 'Saving…' : 'Save & close all'}
+              {save.kind === 'saving' ? 'Saving…' : 'Save & close'}
             </button>
             <button
               type="button"
               className="secondary"
               onClick={() => runSave(false)}
-              disabled={save.kind === 'saving' || ready.tabCount === 0}
+              disabled={save.kind === 'saving' || currentCount === 0}
             >
               Save without closing
             </button>
           </div>
+
           {save.kind === 'success' && (
             <div className="status success">
               Saved {save.result.savedCount}/{save.result.totalCount} to&nbsp;

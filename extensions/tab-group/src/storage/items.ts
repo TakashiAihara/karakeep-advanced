@@ -18,6 +18,10 @@ export const recentGroupIdsItem = storage.defineItem<string[]>(
   { fallback: [] },
 );
 
+export const excludePinnedItem = storage.defineItem<boolean>('local:excludePinned', {
+  fallback: true,
+});
+
 export async function loadKarakeepConfig(): Promise<{ serverUrl: string; apiKey: string }> {
   const [serverUrl, apiKey] = await Promise.all([
     serverUrlItem.getValue(),
