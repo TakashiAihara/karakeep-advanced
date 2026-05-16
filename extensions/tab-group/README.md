@@ -90,6 +90,12 @@ Right-click on any page:
 3. Click ✏️ &rarr; the group name turns into an inline input. Edit and press Enter; the list reloads with the new name. Esc cancels, blur saves.
 4. Click 🗑️ &rarr; confirmation dialog. Confirm &rarr; the sub-list is removed from Karakeep (bookmarks themselves stay) and the row disappears.
 
+## Manual smoke test for Phase 2 / PR4 (Open all in new window)
+
+1. Open the popup &rsaquo; **Recent** tab. A "Open in:" toolbar appears at the top with **Current window / New window** pills.
+2. Pick **New window** and click **Open all (N)** on any group &rarr; a single new browser window opens with all the bookmarks loaded.
+3. Pick **Current window** and click again &rarr; URLs are appended as background tabs in the current window (Phase 1 behaviour).
+
 ## Status
 
-Phase 2 / PR3 complete: pinned + scope + context menus + rename/delete. Only PR4 (Open all in new window) remains for Phase 2 &mdash; see the design doc.
+Phase 2 complete: pinned exclusion + scope selector + right-click context menus + rename/delete + Open all in new window. Phase 3 (shared URL, auto-cleanup, split/merge, stats, i18n) is the next milestone &mdash; see the design doc.

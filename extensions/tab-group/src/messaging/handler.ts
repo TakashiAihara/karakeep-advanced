@@ -64,7 +64,7 @@ export async function handle(request: Request): Promise<Response> {
 
   if (request.type === 'OPEN_GROUP') {
     try {
-      const result = await openGroup(request.listId);
+      const result = await openGroup(request.listId, request.target ?? 'current');
       return { type: 'OPENED', opened: result.opened, total: result.total };
     } catch (err) {
       return {
