@@ -62,17 +62,26 @@ export async function checkConnection(
   config: KarakeepConfig,
 ): Promise<ConnectionCheckResult | ConnectionCheckError> {
   const client = buildClient(config);
-  const { data, error, response } = await client.GET('/users/me');
 
-  if (error || !data) {
+  try {
+    const { data, error, response } = await client.GET('/users/me');
+
+    if (error || !data) {
+      return {
+        ok: false,
+        status: response.status,
+        message:
+          (error as { error?: string } | undefined)?.error ??
+          `HTTP ${response.status} ${response.statusText}`,
+      };
+    }
+
+    return { ok: true, user: data };
+  } catch (e) {
     return {
       ok: false,
-      status: response.status,
-      message:
-        (error as { error?: string } | undefined)?.error ??
-        `HTTP ${response.status} ${response.statusText}`,
+      status: 0,
+      message: e instanceof Error ? e.message : 'Network request failed',
     };
   }
-
-  return { ok: true, user: data };
 }

@@ -12,7 +12,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "tsc --noEmit",
-    "generate:api": "openapi-typescript https://raw.githubusercontent.com/karakeep-app/karakeep/main/packages/open-api/karakeep-openapi-spec.json -o src/karakeep/schema.d.ts",
+    "generate:api": "openapi-typescript https://raw.githubusercontent.com/karakeep-app/karakeep/v0.32.0/packages/open-api/karakeep-openapi-spec.json -o src/karakeep/schema.d.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

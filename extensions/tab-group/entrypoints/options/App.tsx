@@ -39,45 +39,59 @@ export default function App() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValidUrl(serverUrl)) {
+
+    const normalizedServerUrl = serverUrl.trim().replace(/\/+$/, '');
+    const normalizedApiKey = apiKey.trim();
+
+    if (!isValidUrl(normalizedServerUrl)) {
       setStatus({ kind: 'error', message: 'Server URL must be http(s)://...' });
       return;
     }
-    if (!apiKey.trim()) {
+    if (!normalizedApiKey) {
       setStatus({ kind: 'error', message: 'API key is required.' });
       return;
     }
 
     setStatus({ kind: 'checking' });
 
-    const permissionGranted = await ensureHostPermission(serverUrl);
-    if (!permissionGranted) {
+    try {
+      const permissionGranted = await ensureHostPermission(normalizedServerUrl);
+      if (!permissionGranted) {
+        setStatus({
+          kind: 'error',
+          message:
+            'Host permission was not granted. Karakeep Advanced needs access to the server origin to call its API.',
+        });
+        return;
+      }
+
+      const result = await checkConnection({
+        serverUrl: normalizedServerUrl,
+        apiKey: normalizedApiKey,
+      });
+      if (!result.ok) {
+        setStatus({
+          kind: 'error',
+          message: `Connection failed (${result.status}): ${result.message}`,
+        });
+        return;
+      }
+
+      await Promise.all([
+        serverUrlItem.setValue(normalizedServerUrl),
+        apiKeyItem.setValue(normalizedApiKey),
+      ]);
+
+      setStatus({
+        kind: 'success',
+        message: `Connected as ${result.user.name ?? result.user.email}. Settings saved.`,
+      });
+    } catch (err) {
       setStatus({
         kind: 'error',
-        message:
-          'Host permission was not granted. Karakeep Advanced needs access to the server origin to call its API.',
+        message: err instanceof Error ? err.message : 'Unexpected error occurred.',
       });
-      return;
     }
-
-    const result = await checkConnection({ serverUrl, apiKey });
-    if (!result.ok) {
-      setStatus({
-        kind: 'error',
-        message: `Connection failed (${result.status}): ${result.message}`,
-      });
-      return;
-    }
-
-    await Promise.all([
-      serverUrlItem.setValue(serverUrl.replace(/\/$/, '')),
-      apiKeyItem.setValue(apiKey),
-    ]);
-
-    setStatus({
-      kind: 'success',
-      message: `Connected as ${result.user.name ?? result.user.email}. Settings saved.`,
-    });
   }
 
   return (
