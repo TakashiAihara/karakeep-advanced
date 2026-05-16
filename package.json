@@ -1,0 +1,12 @@
+{
+  "name": "karakeep-advanced",
+  "private": true,
+  "workspaces": [
+    "extensions/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter './extensions/*' dev",
+    "build": "bun --filter './extensions/*' build",
+    "typecheck": "bun --filter './extensions/*' typecheck"
+  }
+}
