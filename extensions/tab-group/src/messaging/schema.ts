@@ -48,7 +48,7 @@ export type Request =
   | { type: 'SAVE_WITHOUT_CLOSING'; scope: SaveScope; overrides?: SaveOverrides }
   | { type: 'SEARCH'; q: string; cursor?: string }
   | { type: 'LIST_RECENT_GROUPS'; limit?: number }
-  | { type: 'OPEN_GROUP'; listId: string }
+  | { type: 'OPEN_GROUP'; listId: string; target?: 'current' | 'new' }
   | { type: 'IMPORT_ONETAB'; text: string }
   | { type: 'RENAME_GROUP'; listId: string; name: string }
   | { type: 'DELETE_GROUP'; listId: string };

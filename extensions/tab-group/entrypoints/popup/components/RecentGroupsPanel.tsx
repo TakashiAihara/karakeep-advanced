@@ -19,10 +19,13 @@ type RowEdit = { listId: string; draft: string };
 
 const RECENT_LIMIT = 20;
 
+type OpenTarget = 'current' | 'new';
+
 export default function RecentGroupsPanel() {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [action, setAction] = useState<Action>({ kind: 'idle' });
   const [edit, setEdit] = useState<RowEdit | null>(null);
+  const [openTarget, setOpenTarget] = useState<OpenTarget>('current');
 
   async function reload() {
     const response = await sendRequest({ type: 'LIST_RECENT_GROUPS', limit: RECENT_LIMIT });
@@ -40,11 +43,16 @@ export default function RecentGroupsPanel() {
   async function openAll(group: GroupSummary) {
     const count = group.tabCount;
     const summary = count != null ? `${count} tabs` : 'all tabs';
-    const ok = window.confirm(`Open ${summary} from "${group.name}"?`);
+    const where = openTarget === 'new' ? ' in a new window' : '';
+    const ok = window.confirm(`Open ${summary} from "${group.name}"${where}?`);
     if (!ok) return;
 
     setAction({ kind: 'opening', groupId: group.id });
-    const response = await sendRequest({ type: 'OPEN_GROUP', listId: group.id });
+    const response = await sendRequest({
+      type: 'OPEN_GROUP',
+      listId: group.id,
+      target: openTarget,
+    });
     if (response.type === 'OPENED') {
       setAction({ kind: 'opened', opened: response.opened, total: response.total });
     } else {
@@ -110,6 +118,32 @@ export default function RecentGroupsPanel() {
 
   return (
     <div className="recent">
+      <div className="recent-toolbar">
+        <span className="muted">Open in:</span>
+        <div className="recent-target" role="radiogroup" aria-label="Open target">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={openTarget === 'current'}
+            className={openTarget === 'current' ? 'pill active' : 'pill'}
+            onClick={() => setOpenTarget('current')}
+            disabled={anyBusy}
+          >
+            Current window
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={openTarget === 'new'}
+            className={openTarget === 'new' ? 'pill active' : 'pill'}
+            onClick={() => setOpenTarget('new')}
+            disabled={anyBusy}
+          >
+            New window
+          </button>
+        </div>
+      </div>
+
       <ul className="recent-list">
         {state.groups.map((group) => {
           const isEditing = edit?.listId === group.id;
