@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
+import RecentGroupsPanel from './components/RecentGroupsPanel';
 import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
 import type { SaveResult } from '@/src/messaging/schema';
 import { apiKeyItem, serverUrlItem } from '@/src/storage/items';
 import './App.css';
 
-type View = 'save' | 'search';
+type View = 'save' | 'recent' | 'search';
 
 type SaveUi =
   | { kind: 'idle' }
@@ -102,6 +103,15 @@ export default function App() {
         <button
           type="button"
           role="tab"
+          aria-selected={view === 'recent'}
+          className={view === 'recent' ? 'tab active' : 'tab'}
+          onClick={() => setView('recent')}
+        >
+          Recent
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={view === 'search'}
           className={view === 'search' ? 'tab active' : 'tab'}
           onClick={() => setView('search')}
@@ -148,6 +158,7 @@ export default function App() {
         </>
       )}
 
+      {view === 'recent' && <RecentGroupsPanel />}
       {view === 'search' && <SearchPanel />}
     </main>
   );

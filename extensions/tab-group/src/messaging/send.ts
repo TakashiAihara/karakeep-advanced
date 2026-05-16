@@ -5,7 +5,11 @@ type ResponseFor<R extends Request> = R['type'] extends 'SAVE_AND_CLOSE' | 'SAVE
   ? Extract<Response, { type: 'SAVED' | 'ERROR' }>
   : R['type'] extends 'SEARCH'
     ? Extract<Response, { type: 'SEARCH_RESULT' | 'ERROR' }>
-    : Response;
+    : R['type'] extends 'LIST_RECENT_GROUPS'
+      ? Extract<Response, { type: 'RECENT_GROUPS' | 'ERROR' }>
+      : R['type'] extends 'OPEN_GROUP'
+        ? Extract<Response, { type: 'OPENED' | 'ERROR' }>
+        : Response;
 
 export async function sendRequest<R extends Request>(request: R): Promise<ResponseFor<R>> {
   return (await browser.runtime.sendMessage(request)) as ResponseFor<R>;

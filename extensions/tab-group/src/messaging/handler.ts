@@ -1,5 +1,7 @@
 import { browser } from 'wxt/browser';
 import { configureKarakeep } from '@/src/karakeep/client';
+import { listRecentGroups } from '@/src/karakeep/flows/list-recent-groups';
+import { openGroup } from '@/src/karakeep/flows/open-group';
 import { saveTabsAsGroup } from '@/src/karakeep/flows/save-tabs-as-group';
 import { searchBookmarks } from '@/src/karakeep/flows/search-bookmarks';
 import { loadKarakeepConfig } from '@/src/storage/items';
@@ -34,6 +36,32 @@ export async function handle(request: Request): Promise<Response> {
     try {
       const page = await searchBookmarks(request.q, { cursor: request.cursor });
       return { type: 'SEARCH_RESULT', hits: page.hits, nextCursor: page.nextCursor };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  if (request.type === 'LIST_RECENT_GROUPS') {
+    try {
+      const groups = await listRecentGroups(request.limit);
+      return { type: 'RECENT_GROUPS', groups };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  if (request.type === 'OPEN_GROUP') {
+    try {
+      const result = await openGroup(request.listId);
+      return { type: 'OPENED', opened: result.opened, total: result.total };
     } catch (err) {
       return {
         type: 'ERROR',
