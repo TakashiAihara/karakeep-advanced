@@ -7,27 +7,34 @@ type LoadState =
   | { kind: 'ready'; groups: GroupSummary[] }
   | { kind: 'error'; message: string };
 
-type OpenStatus =
+type Action =
   | { kind: 'idle' }
   | { kind: 'opening'; groupId: string }
+  | { kind: 'renaming'; groupId: string }
+  | { kind: 'deleting'; groupId: string }
   | { kind: 'opened'; opened: number; total: number }
   | { kind: 'error'; message: string };
+
+type RowEdit = { listId: string; draft: string };
 
 const RECENT_LIMIT = 20;
 
 export default function RecentGroupsPanel() {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
-  const [openStatus, setOpenStatus] = useState<OpenStatus>({ kind: 'idle' });
+  const [action, setAction] = useState<Action>({ kind: 'idle' });
+  const [edit, setEdit] = useState<RowEdit | null>(null);
+
+  async function reload() {
+    const response = await sendRequest({ type: 'LIST_RECENT_GROUPS', limit: RECENT_LIMIT });
+    if (response.type === 'RECENT_GROUPS') {
+      setState({ kind: 'ready', groups: response.groups });
+    } else {
+      setState({ kind: 'error', message: response.message });
+    }
+  }
 
   useEffect(() => {
-    void (async () => {
-      const response = await sendRequest({ type: 'LIST_RECENT_GROUPS', limit: RECENT_LIMIT });
-      if (response.type === 'RECENT_GROUPS') {
-        setState({ kind: 'ready', groups: response.groups });
-      } else {
-        setState({ kind: 'error', message: response.message });
-      }
-    })();
+    void reload();
   }, []);
 
   async function openAll(group: GroupSummary) {
@@ -36,23 +43,60 @@ export default function RecentGroupsPanel() {
     const ok = window.confirm(`Open ${summary} from "${group.name}"?`);
     if (!ok) return;
 
-    setOpenStatus({ kind: 'opening', groupId: group.id });
+    setAction({ kind: 'opening', groupId: group.id });
     const response = await sendRequest({ type: 'OPEN_GROUP', listId: group.id });
     if (response.type === 'OPENED') {
-      setOpenStatus({ kind: 'opened', opened: response.opened, total: response.total });
+      setAction({ kind: 'opened', opened: response.opened, total: response.total });
     } else {
-      setOpenStatus({ kind: 'error', message: response.message });
+      setAction({ kind: 'error', message: response.message });
+    }
+  }
+
+  async function commitRename(group: GroupSummary) {
+    if (!edit || edit.listId !== group.id) return;
+    const draft = edit.draft.trim();
+    if (!draft || draft === group.name) {
+      setEdit(null);
+      return;
+    }
+
+    setAction({ kind: 'renaming', groupId: group.id });
+    const response = await sendRequest({
+      type: 'RENAME_GROUP',
+      listId: group.id,
+      name: draft,
+    });
+    if (response.type === 'RENAMED') {
+      setEdit(null);
+      setAction({ kind: 'idle' });
+      await reload();
+    } else {
+      setAction({ kind: 'error', message: response.message });
+    }
+  }
+
+  async function remove(group: GroupSummary) {
+    const ok = window.confirm(
+      `Delete "${group.name}" from Karakeep? This removes the sub-list (bookmarks stay).`,
+    );
+    if (!ok) return;
+
+    setAction({ kind: 'deleting', groupId: group.id });
+    const response = await sendRequest({ type: 'DELETE_GROUP', listId: group.id });
+    if (response.type === 'DELETED') {
+      setAction({ kind: 'idle' });
+      await reload();
+    } else {
+      setAction({ kind: 'error', message: response.message });
     }
   }
 
   if (state.kind === 'loading') {
     return <p className="muted">Loading recent groups…</p>;
   }
-
   if (state.kind === 'error') {
     return <div className="status error">{state.message}</div>;
   }
-
   if (state.groups.length === 0) {
     return (
       <p className="muted">
@@ -61,41 +105,84 @@ export default function RecentGroupsPanel() {
     );
   }
 
+  const anyBusy =
+    action.kind === 'opening' || action.kind === 'renaming' || action.kind === 'deleting';
+
   return (
     <div className="recent">
       <ul className="recent-list">
         {state.groups.map((group) => {
-          const busy = openStatus.kind === 'opening' && openStatus.groupId === group.id;
+          const isEditing = edit?.listId === group.id;
+          const isOpeningRow = action.kind === 'opening' && action.groupId === group.id;
+
           return (
             <li key={group.id} className="recent-item">
-              <div className="recent-name" title={group.name}>
-                {group.name}
+              {isEditing ? (
+                <input
+                  type="text"
+                  className="recent-edit"
+                  value={edit!.draft}
+                  autoFocus
+                  onChange={(e) => setEdit({ listId: group.id, draft: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void commitRename(group);
+                    } else if (e.key === 'Escape') {
+                      setEdit(null);
+                    }
+                  }}
+                  onBlur={() => void commitRename(group)}
+                />
+              ) : (
+                <div className="recent-name" title={group.name}>
+                  {group.name}
+                </div>
+              )}
+
+              <div className="recent-row-actions">
+                <button
+                  type="button"
+                  className="icon"
+                  title="Rename"
+                  onClick={() => setEdit({ listId: group.id, draft: group.name })}
+                  disabled={anyBusy}
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  className="icon"
+                  title="Delete"
+                  onClick={() => void remove(group)}
+                  disabled={anyBusy}
+                >
+                  🗑️
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => void openAll(group)}
+                  disabled={anyBusy}
+                >
+                  {isOpeningRow
+                    ? 'Opening…'
+                    : group.tabCount != null
+                      ? `Open all (${group.tabCount})`
+                      : 'Open all'}
+                </button>
               </div>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => openAll(group)}
-                disabled={openStatus.kind === 'opening'}
-              >
-                {busy
-                  ? 'Opening…'
-                  : group.tabCount != null
-                    ? `Open all (${group.tabCount})`
-                    : 'Open all'}
-              </button>
             </li>
           );
         })}
       </ul>
 
-      {openStatus.kind === 'opened' && (
+      {action.kind === 'opened' && (
         <div className="status success">
-          Opened {openStatus.opened}/{openStatus.total} tabs.
+          Opened {action.opened}/{action.total} tabs.
         </div>
       )}
-      {openStatus.kind === 'error' && (
-        <div className="status error">{openStatus.message}</div>
-      )}
+      {action.kind === 'error' && <div className="status error">{action.message}</div>}
     </div>
   );
 }
