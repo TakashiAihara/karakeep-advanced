@@ -68,6 +68,14 @@ Result is announced via a desktop notification (`Saved M/N → <subListName>`); 
 4. The button shows `Import N groups (M URLs)`. Click it.
 5. Each non-empty paragraph becomes a sub-list named `Imported from OneTab #i (N tabs)` under `Tab Groups`, populated with the URLs.
 
+## Manual smoke test for Phase 2 / PR1 (Pinned + scope selector)
+
+1. Open Options, scroll to **Preferences**. Toggle **Exclude pinned tabs from saves** (default ON).
+2. Open the popup &rarr; the **Save** tab now has a 3-segment selector (All / Others / Selected) and the message line says `pinned excluded` when applicable.
+3. Pick **Others** with a few tabs open &rarr; the count drops by one (the active tab) and the save targets only the inactive ones.
+4. Highlight (Ctrl-/Shift-click) several tabs in the tab strip and pick **Selected** &rarr; the count matches the highlighted set; falls back to the single active tab when none are highlighted.
+5. Pin one tab and verify it stays open / out of the saved sub-list when **Exclude pinned tabs** is on; toggle it off and re-run to confirm pinned tabs are then saved.
+
 ## Status
 
-Phase 1 MVP complete: save (popup + 2 shortcuts), search & restore, recent groups with Open all, OneTab import. Phase 2 (selected/others/right-only save, pinned exclusion, group rename/delete UI) is next &mdash; see the design doc.
+Phase 2 / PR1 complete: pinned exclusion + popup scope selector. Phase 2 PR2-4 still to come (context menus, rename/delete, Open all in new window) &mdash; see the design doc.
