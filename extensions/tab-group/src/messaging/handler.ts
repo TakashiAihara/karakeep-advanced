@@ -4,7 +4,7 @@ import { saveTabsAsGroup } from '@/src/karakeep/flows/save-tabs-as-group';
 import { loadKarakeepConfig } from '@/src/storage/items';
 import type { Request, Response } from './schema';
 
-async function handle(request: Request): Promise<Response> {
+export async function handle(request: Request): Promise<Response> {
   const config = await loadKarakeepConfig();
   if (!config.serverUrl || !config.apiKey) {
     return {
