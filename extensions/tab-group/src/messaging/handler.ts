@@ -24,6 +24,7 @@ export async function handle(request: Request): Promise<Response> {
       const result = await saveTabsAsGroup({
         scope: request.scope,
         closeAfter: request.type === 'SAVE_AND_CLOSE',
+        overrides: request.overrides,
       });
       return { type: 'SAVED', result };
     } catch (err) {

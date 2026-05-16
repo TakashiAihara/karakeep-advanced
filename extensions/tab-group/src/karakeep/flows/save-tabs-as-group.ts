@@ -1,7 +1,12 @@
 import { browser } from 'wxt/browser';
 import { ensureTabGroupsList } from './ensure-tab-groups-list';
 import { getKarakeep } from '@/src/karakeep/client';
-import type { SaveError, SaveResult, SaveScope } from '@/src/messaging/schema';
+import type {
+  SaveError,
+  SaveOverrides,
+  SaveResult,
+  SaveScope,
+} from '@/src/messaging/schema';
 import { excludePinnedItem, recentGroupIdsItem } from '@/src/storage/items';
 import { mapWithConcurrency } from '@/src/util/concurrency';
 import { selectSaveableTabs } from '@/src/util/saveable-tabs';
@@ -18,12 +23,16 @@ function formatTimestamp(d: Date): string {
   )}:${pad(d.getMinutes())}`;
 }
 
-async function selectTabs(scope: SaveScope) {
-  const [allTabs, excludePinned] = await Promise.all([
+async function selectTabs(scope: SaveScope, overrides?: SaveOverrides) {
+  const [allTabs, storedExcludePinned] = await Promise.all([
     browser.tabs.query({ currentWindow: true }),
     excludePinnedItem.getValue(),
   ]);
-  return selectSaveableTabs(allTabs, scope, { excludePinned });
+  const excludePinned = overrides?.ignoreExcludePinned ? false : storedExcludePinned;
+  return selectSaveableTabs(allTabs, scope, {
+    excludePinned,
+    tabIds: overrides?.tabIds,
+  });
 }
 
 async function pushRecentGroup(subListId: string): Promise<void> {
@@ -38,10 +47,11 @@ async function pushRecentGroup(subListId: string): Promise<void> {
 export type SaveOptions = {
   scope: SaveScope;
   closeAfter: boolean;
+  overrides?: SaveOverrides;
 };
 
 export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult> {
-  const tabs = await selectTabs(options.scope);
+  const tabs = await selectTabs(options.scope, options.overrides);
   if (tabs.length === 0) {
     throw new Error('No saveable tabs (http/https) found in this window.');
   }

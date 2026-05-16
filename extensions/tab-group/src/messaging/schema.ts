@@ -1,4 +1,9 @@
-export type SaveScope = 'all' | 'others' | 'selected';
+export type SaveScope = 'all' | 'others' | 'selected' | 'single';
+
+export type SaveOverrides = {
+  tabIds?: number[];
+  ignoreExcludePinned?: boolean;
+};
 
 export type SaveError = {
   url: string;
@@ -39,8 +44,8 @@ export type ImportSummary = {
 };
 
 export type Request =
-  | { type: 'SAVE_AND_CLOSE'; scope: SaveScope }
-  | { type: 'SAVE_WITHOUT_CLOSING'; scope: SaveScope }
+  | { type: 'SAVE_AND_CLOSE'; scope: SaveScope; overrides?: SaveOverrides }
+  | { type: 'SAVE_WITHOUT_CLOSING'; scope: SaveScope; overrides?: SaveOverrides }
   | { type: 'SEARCH'; q: string; cursor?: string }
   | { type: 'LIST_RECENT_GROUPS'; limit?: number }
   | { type: 'OPEN_GROUP'; listId: string }

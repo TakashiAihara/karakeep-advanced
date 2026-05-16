@@ -76,6 +76,13 @@ Result is announced via a desktop notification (`Saved M/N → <subListName>`); 
 4. Highlight (Ctrl-/Shift-click) several tabs in the tab strip and pick **Selected** &rarr; the count matches the highlighted set; falls back to the single active tab when none are highlighted.
 5. Pin one tab and verify it stays open / out of the saved sub-list when **Exclude pinned tabs** is on; toggle it off and re-run to confirm pinned tabs are then saved.
 
+## Manual smoke test for Phase 2 / PR2 (context menu)
+
+Right-click on any page:
+
+1. **Save this page to Karakeep** &rarr; the active tab is saved as a 1-item sub-list (`YYYY-MM-DD HH:MM (1 tabs)`) regardless of the **Exclude pinned tabs** setting. A notification confirms the save.
+2. **Save selected tabs to Karakeep** &rarr; if multiple tabs are highlighted in the tab strip (Ctrl-/Shift-click), they are bundled into one sub-list. Otherwise the active tab is saved (same as Selected scope in the popup).
+
 ## Status
 
-Phase 2 / PR1 complete: pinned exclusion + popup scope selector. Phase 2 PR2-4 still to come (context menus, rename/delete, Open all in new window) &mdash; see the design doc.
+Phase 2 / PR2 complete: pinned exclusion + scope selector + right-click context menus. Phase 2 PR3-4 still to come (rename/delete, Open all in new window) &mdash; see the design doc.
