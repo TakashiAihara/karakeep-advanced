@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
+import ImportPanel from './components/ImportPanel';
 import RecentGroupsPanel from './components/RecentGroupsPanel';
 import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
@@ -7,7 +8,7 @@ import type { SaveResult } from '@/src/messaging/schema';
 import { apiKeyItem, serverUrlItem } from '@/src/storage/items';
 import './App.css';
 
-type View = 'save' | 'recent' | 'search';
+type View = 'save' | 'recent' | 'search' | 'import';
 
 type SaveUi =
   | { kind: 'idle' }
@@ -118,6 +119,15 @@ export default function App() {
         >
           Search
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'import'}
+          className={view === 'import' ? 'tab active' : 'tab'}
+          onClick={() => setView('import')}
+        >
+          Import
+        </button>
       </nav>
 
       {view === 'save' && (
@@ -160,6 +170,7 @@ export default function App() {
 
       {view === 'recent' && <RecentGroupsPanel />}
       {view === 'search' && <SearchPanel />}
+      {view === 'import' && <ImportPanel />}
     </main>
   );
 }

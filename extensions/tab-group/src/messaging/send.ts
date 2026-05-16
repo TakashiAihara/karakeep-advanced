@@ -9,7 +9,9 @@ type ResponseFor<R extends Request> = R['type'] extends 'SAVE_AND_CLOSE' | 'SAVE
       ? Extract<Response, { type: 'RECENT_GROUPS' | 'ERROR' }>
       : R['type'] extends 'OPEN_GROUP'
         ? Extract<Response, { type: 'OPENED' | 'ERROR' }>
-        : Response;
+        : R['type'] extends 'IMPORT_ONETAB'
+          ? Extract<Response, { type: 'IMPORTED' | 'ERROR' }>
+          : Response;
 
 export async function sendRequest<R extends Request>(request: R): Promise<ResponseFor<R>> {
   return (await browser.runtime.sendMessage(request)) as ResponseFor<R>;

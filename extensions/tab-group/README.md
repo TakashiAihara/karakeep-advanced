@@ -60,6 +60,14 @@ Result is announced via a desktop notification (`Saved M/N → <subListName>`); 
 4. Click **Open all (N)** on a row &rarr; a confirm dialog appears (`Open N tabs from "<name>"?`).
 5. Confirm &rarr; the bookmarks are reopened as background tabs in the current window.
 
+## Manual smoke test for PR6 (OneTab import)
+
+1. From OneTab, **Export / Import URLs** &rarr; **Export URLs** and copy the text.
+2. In the popup, switch to the **Import** tab.
+3. Paste the export into the textarea (or pick a `.txt` file via the file input).
+4. The button shows `Import N groups (M URLs)`. Click it.
+5. Each non-empty paragraph becomes a sub-list named `Imported from OneTab #i (N tabs)` under `Tab Groups`, populated with the URLs.
+
 ## Status
 
-PR5 (popup save + keyboard shortcuts + search/restore + recent groups with Open all). Only OneTab import remains for Phase 1 &mdash; see the design doc.
+Phase 1 MVP complete: save (popup + 2 shortcuts), search & restore, recent groups with Open all, OneTab import. Phase 2 (selected/others/right-only save, pinned exclusion, group rename/delete UI) is next &mdash; see the design doc.
