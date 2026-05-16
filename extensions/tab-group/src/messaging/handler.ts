@@ -1,8 +1,10 @@
 import { browser } from 'wxt/browser';
 import { configureKarakeep } from '@/src/karakeep/client';
+import { deleteGroup } from '@/src/karakeep/flows/delete-group';
 import { importOneTabExport } from '@/src/karakeep/flows/import-onetab';
 import { listRecentGroups } from '@/src/karakeep/flows/list-recent-groups';
 import { openGroup } from '@/src/karakeep/flows/open-group';
+import { renameGroup } from '@/src/karakeep/flows/rename-group';
 import { saveTabsAsGroup } from '@/src/karakeep/flows/save-tabs-as-group';
 import { searchBookmarks } from '@/src/karakeep/flows/search-bookmarks';
 import { loadKarakeepConfig } from '@/src/storage/items';
@@ -77,6 +79,32 @@ export async function handle(request: Request): Promise<Response> {
     try {
       const summary = await importOneTabExport(request.text);
       return { type: 'IMPORTED', summary };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  if (request.type === 'RENAME_GROUP') {
+    try {
+      await renameGroup(request.listId, request.name);
+      return { type: 'RENAMED', listId: request.listId, name: request.name.trim() };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  if (request.type === 'DELETE_GROUP') {
+    try {
+      await deleteGroup(request.listId);
+      return { type: 'DELETED', listId: request.listId };
     } catch (err) {
       return {
         type: 'ERROR',

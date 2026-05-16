@@ -49,7 +49,9 @@ export type Request =
   | { type: 'SEARCH'; q: string; cursor?: string }
   | { type: 'LIST_RECENT_GROUPS'; limit?: number }
   | { type: 'OPEN_GROUP'; listId: string }
-  | { type: 'IMPORT_ONETAB'; text: string };
+  | { type: 'IMPORT_ONETAB'; text: string }
+  | { type: 'RENAME_GROUP'; listId: string; name: string }
+  | { type: 'DELETE_GROUP'; listId: string };
 
 export type Response =
   | { type: 'SAVED'; result: SaveResult }
@@ -57,4 +59,6 @@ export type Response =
   | { type: 'RECENT_GROUPS'; groups: GroupSummary[] }
   | { type: 'OPENED'; opened: number; total: number }
   | { type: 'IMPORTED'; summary: ImportSummary }
+  | { type: 'RENAMED'; listId: string; name: string }
+  | { type: 'DELETED'; listId: string }
   | { type: 'ERROR'; message: string; code?: 'UNCONFIGURED' | 'NO_TABS' | 'KARAKEEP' };

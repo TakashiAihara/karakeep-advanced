@@ -83,6 +83,13 @@ Right-click on any page:
 1. **Save this page to Karakeep** &rarr; the active tab is saved as a 1-item sub-list (`YYYY-MM-DD HH:MM (1 tabs)`) regardless of the **Exclude pinned tabs** setting. A notification confirms the save.
 2. **Save selected tabs to Karakeep** &rarr; if multiple tabs are highlighted in the tab strip (Ctrl-/Shift-click), they are bundled into one sub-list. Otherwise the active tab is saved (same as Selected scope in the popup).
 
+## Manual smoke test for Phase 2 / PR3 (rename / delete)
+
+1. Open the popup and switch to **Recent**.
+2. Hover any group row — ✏️ and 🗑️ buttons appear next to "Open all".
+3. Click ✏️ &rarr; the group name turns into an inline input. Edit and press Enter; the list reloads with the new name. Esc cancels, blur saves.
+4. Click 🗑️ &rarr; confirmation dialog. Confirm &rarr; the sub-list is removed from Karakeep (bookmarks themselves stay) and the row disappears.
+
 ## Status
 
-Phase 2 / PR2 complete: pinned exclusion + scope selector + right-click context menus. Phase 2 PR3-4 still to come (rename/delete, Open all in new window) &mdash; see the design doc.
+Phase 2 / PR3 complete: pinned + scope + context menus + rename/delete. Only PR4 (Open all in new window) remains for Phase 2 &mdash; see the design doc.
