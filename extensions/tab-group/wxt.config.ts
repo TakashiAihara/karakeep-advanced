@@ -8,7 +8,7 @@ export default defineConfig({
     short_name: 'KA Tab Group',
     description:
       'Save tab groups to your Karakeep instance. OneTab-compatible UX, multi-device sync via Karakeep.',
-    permissions: ['tabs', 'storage', 'contextMenus'],
+    permissions: ['tabs', 'storage', 'contextMenus', 'notifications'],
     optional_host_permissions: ['<all_urls>'],
     commands: {
       'save-tab-group': {

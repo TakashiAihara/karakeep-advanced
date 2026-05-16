@@ -36,6 +36,15 @@ After PR1 setup (options saved with a working server URL + API key):
 5. **Save without closing** &rarr; same but the tabs stay open.
 6. Confirm in Karakeep that the parent list `Tab Groups` exists and contains a new sub-list named `YYYY-MM-DD HH:MM (N tabs)`.
 
+## Manual smoke test for PR3 (keyboard shortcuts)
+
+Default keys (configurable in `chrome://extensions/shortcuts`):
+
+- **`Ctrl+Shift+E`** &rarr; "Save all tabs to Karakeep and close them" (`save-tab-group`)
+- **`Ctrl+Shift+S`** &rarr; "Save all tabs to Karakeep without closing them" (`save-without-closing`)
+
+Result is announced via a desktop notification (`Saved M/N → <subListName>`); errors are also notified.
+
 ## Status
 
-PR2 (popup save flow + Karakeep tab-groups data model). Keyboard shortcuts, search, recent groups list, and OneTab import land in later PRs &mdash; see the design doc.
+PR3 (popup save flow + keyboard shortcuts). Search, recent groups list, and OneTab import land in later PRs &mdash; see the design doc.
