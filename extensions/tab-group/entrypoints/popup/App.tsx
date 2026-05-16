@@ -11,6 +11,8 @@ import './App.css';
 
 type View = 'save' | 'recent' | 'search' | 'import';
 
+type PopupScope = Exclude<SaveScope, 'single'>;
+
 type SaveUi =
   | { kind: 'idle' }
   | { kind: 'saving' }
@@ -26,18 +28,18 @@ type ReadyState =
       excludePinned: boolean;
     };
 
-const SCOPE_LABELS: Record<SaveScope, string> = {
+const SCOPE_LABELS: Record<PopupScope, string> = {
   all: 'All',
   others: 'Others',
   selected: 'Selected',
 };
 
-const SCOPE_ORDER: SaveScope[] = ['all', 'others', 'selected'];
+const SCOPE_ORDER: PopupScope[] = ['all', 'others', 'selected'];
 
 export default function App() {
   const [view, setView] = useState<View>('save');
   const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
-  const [scope, setScope] = useState<SaveScope>('all');
+  const [scope, setScope] = useState<PopupScope>('all');
   const [save, setSave] = useState<SaveUi>({ kind: 'idle' });
 
   useEffect(() => {
