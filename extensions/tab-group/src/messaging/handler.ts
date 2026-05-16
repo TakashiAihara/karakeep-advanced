@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { configureKarakeep } from '@/src/karakeep/client';
 import { saveTabsAsGroup } from '@/src/karakeep/flows/save-tabs-as-group';
+import { searchBookmarks } from '@/src/karakeep/flows/search-bookmarks';
 import { loadKarakeepConfig } from '@/src/storage/items';
 import type { Request, Response } from './schema';
 
@@ -26,6 +27,19 @@ export async function handle(request: Request): Promise<Response> {
       const message = err instanceof Error ? err.message : String(err);
       const code = /no saveable tabs/i.test(message) ? 'NO_TABS' : 'KARAKEEP';
       return { type: 'ERROR', code, message };
+    }
+  }
+
+  if (request.type === 'SEARCH') {
+    try {
+      const page = await searchBookmarks(request.q, { cursor: request.cursor });
+      return { type: 'SEARCH_RESULT', hits: page.hits, nextCursor: page.nextCursor };
+    } catch (err) {
+      return {
+        type: 'ERROR',
+        code: 'KARAKEEP',
+        message: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 

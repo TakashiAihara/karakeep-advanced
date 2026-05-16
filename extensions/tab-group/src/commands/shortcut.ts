@@ -50,7 +50,9 @@ export async function runShortcutCommand(command: string): Promise<void> {
     await notify('Karakeep Advanced', describeSuccess(response));
     return;
   }
-  await notify('Karakeep Advanced', response.message);
+  if (response.type === 'ERROR') {
+    await notify('Karakeep Advanced', response.message);
+  }
 }
 
 export function registerShortcutCommands(): void {

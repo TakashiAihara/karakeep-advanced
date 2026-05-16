@@ -1,9 +1,119 @@
 .popup {
-  min-width: 320px;
-  padding: 16px 18px 18px;
+  width: 360px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+.popup .tabs {
+  display: flex;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.popup .tab {
+  flex: 1;
+  padding: 6px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: inherit;
+  font-weight: 500;
+  border-radius: 0;
+}
+
+.popup .tab.active {
+  border-bottom-color: #2563eb;
+  color: #2563eb;
+}
+
+.popup .search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popup .search [cmdk-input] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.popup .search [cmdk-input]:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.popup .search [cmdk-list] {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.popup .search [cmdk-item] {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.popup .search [cmdk-item] .favicon {
+  grid-row: 1 / span 2;
+  margin-top: 2px;
+}
+
+.popup .search [cmdk-item] .hit-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup .search [cmdk-item] .hit-url {
+  grid-column: 2;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup .search [cmdk-item][data-selected="true"] {
+  background: #eff6ff;
+}
+
+.popup .search [cmdk-empty],
+.popup .search [cmdk-loading] {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.popup .search .hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .popup .tabs {
+    border-bottom-color: #3f3f46;
+  }
+  .popup .search [cmdk-input] {
+    border-color: #3f3f46;
+  }
+  .popup .search [cmdk-item][data-selected="true"] {
+    background: #1e3a8a;
+  }
 }
 
 .popup h1 {

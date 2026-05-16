@@ -1,25 +1,32 @@
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
+import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
 import type { SaveResult } from '@/src/messaging/schema';
 import { apiKeyItem, serverUrlItem } from '@/src/storage/items';
 import './App.css';
 
-type Ui =
-  | { kind: 'loading' }
-  | { kind: 'unconfigured' }
+type View = 'save' | 'search';
+
+type SaveUi =
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'success'; result: SaveResult; closed: boolean }
   | { kind: 'error'; message: string };
+
+type ReadyState =
+  | { kind: 'loading' }
+  | { kind: 'unconfigured' }
+  | { kind: 'ready'; tabCount: number };
 
 function isSaveable(tab: { url?: string }): boolean {
   return typeof tab.url === 'string' && /^https?:\/\//i.test(tab.url);
 }
 
 export default function App() {
-  const [tabCount, setTabCount] = useState(0);
-  const [ui, setUi] = useState<Ui>({ kind: 'loading' });
+  const [view, setView] = useState<View>('save');
+  const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
+  const [save, setSave] = useState<SaveUi>({ kind: 'idle' });
 
   useEffect(() => {
     void (async () => {
@@ -28,31 +35,29 @@ export default function App() {
         apiKeyItem.getValue(),
         browser.tabs.query({ currentWindow: true }),
       ]);
-      const count = tabs.filter(isSaveable).length;
-      setTabCount(count);
       if (!serverUrl || !apiKey) {
-        setUi({ kind: 'unconfigured' });
+        setReady({ kind: 'unconfigured' });
         return;
       }
-      setUi({ kind: 'idle' });
+      setReady({ kind: 'ready', tabCount: tabs.filter(isSaveable).length });
     })();
   }, []);
 
-  async function save(close: boolean) {
-    setUi({ kind: 'saving' });
+  async function runSave(close: boolean) {
+    setSave({ kind: 'saving' });
     const response = await sendRequest(
       close
         ? { type: 'SAVE_AND_CLOSE', scope: 'all' }
         : { type: 'SAVE_WITHOUT_CLOSING', scope: 'all' },
     );
     if (response.type === 'SAVED') {
-      setUi({ kind: 'success', result: response.result, closed: close });
+      setSave({ kind: 'success', result: response.result, closed: close });
       return;
     }
-    setUi({ kind: 'error', message: response.message });
+    setSave({ kind: 'error', message: response.message });
   }
 
-  if (ui.kind === 'loading') {
+  if (ready.kind === 'loading') {
     return (
       <main className="popup">
         <p className="muted">Loading…</p>
@@ -60,7 +65,7 @@ export default function App() {
     );
   }
 
-  if (ui.kind === 'unconfigured') {
+  if (ready.kind === 'unconfigured') {
     return (
       <main className="popup">
         <h1>Karakeep Advanced</h1>
@@ -84,42 +89,66 @@ export default function App() {
         </button>
       </header>
 
-      <p className="count">
-        {tabCount} saveable tab{tabCount === 1 ? '' : 's'} in this window
-      </p>
-
-      <div className="actions">
+      <nav className="tabs" role="tablist">
         <button
           type="button"
-          onClick={() => save(true)}
-          disabled={ui.kind === 'saving' || tabCount === 0}
+          role="tab"
+          aria-selected={view === 'save'}
+          className={view === 'save' ? 'tab active' : 'tab'}
+          onClick={() => setView('save')}
         >
-          {ui.kind === 'saving' ? 'Saving…' : 'Save & close all'}
+          Save
         </button>
         <button
           type="button"
-          className="secondary"
-          onClick={() => save(false)}
-          disabled={ui.kind === 'saving' || tabCount === 0}
+          role="tab"
+          aria-selected={view === 'search'}
+          className={view === 'search' ? 'tab active' : 'tab'}
+          onClick={() => setView('search')}
         >
-          Save without closing
+          Search
         </button>
-      </div>
+      </nav>
 
-      {ui.kind === 'success' && (
-        <div className="status success">
-          Saved {ui.result.savedCount}/{ui.result.totalCount} to&nbsp;
-          <strong>{ui.result.subListName}</strong>
-          {ui.result.failed.length > 0 && (
-            <span className="warn"> · {ui.result.failed.length} failed</span>
+      {view === 'save' && (
+        <>
+          <p className="count">
+            {ready.tabCount} saveable tab{ready.tabCount === 1 ? '' : 's'} in this window
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              onClick={() => runSave(true)}
+              disabled={save.kind === 'saving' || ready.tabCount === 0}
+            >
+              {save.kind === 'saving' ? 'Saving…' : 'Save & close all'}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => runSave(false)}
+              disabled={save.kind === 'saving' || ready.tabCount === 0}
+            >
+              Save without closing
+            </button>
+          </div>
+          {save.kind === 'success' && (
+            <div className="status success">
+              Saved {save.result.savedCount}/{save.result.totalCount} to&nbsp;
+              <strong>{save.result.subListName}</strong>
+              {save.result.failed.length > 0 && (
+                <span className="warn"> · {save.result.failed.length} failed</span>
+              )}
+              {save.closed && save.result.closedTabs > 0 && (
+                <span className="muted"> · closed {save.result.closedTabs}</span>
+              )}
+            </div>
           )}
-          {ui.closed && ui.result.closedTabs > 0 && (
-            <span className="muted"> · closed {ui.result.closedTabs}</span>
-          )}
-        </div>
+          {save.kind === 'error' && <div className="status error">{save.message}</div>}
+        </>
       )}
 
-      {ui.kind === 'error' && <div className="status error">{ui.message}</div>}
+      {view === 'search' && <SearchPanel />}
     </main>
   );
 }
