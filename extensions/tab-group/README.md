@@ -25,6 +25,17 @@ bun --filter '@karakeep-advanced/tab-group' generate:api    # regenerate src/kar
 6. Click **Test connection & save**
 7. Grant host permission when prompted &mdash; on success you should see `Connected as <name>. Settings saved.`
 
+## Manual smoke test for PR2
+
+After PR1 setup (options saved with a working server URL + API key):
+
+1. Open a few `http(s)` tabs in a window.
+2. Click the Karakeep Advanced toolbar icon.
+3. The popup shows the count of saveable tabs.
+4. **Save & close all** &rarr; tabs are bookmarked into a new sub-list under `Tab Groups`; on full success the tabs in the window are closed.
+5. **Save without closing** &rarr; same but the tabs stay open.
+6. Confirm in Karakeep that the parent list `Tab Groups` exists and contains a new sub-list named `YYYY-MM-DD HH:MM (N tabs)`.
+
 ## Status
 
-PR1 (options + Karakeep API client foundation). Tab saving, shortcuts, search, recent groups, and OneTab import land in later PRs &mdash; see the design doc.
+PR2 (popup save flow + Karakeep tab-groups data model). Keyboard shortcuts, search, recent groups list, and OneTab import land in later PRs &mdash; see the design doc.

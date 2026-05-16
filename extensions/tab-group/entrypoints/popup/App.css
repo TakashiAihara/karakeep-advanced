@@ -1,42 +1,107 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+.popup {
+  min-width: 320px;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #54bc4ae0);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.popup h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.popup header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.popup .count {
+  margin: 0;
+  color: #6b7280;
+}
+
+.popup .actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup button {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 0;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.popup button:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+.popup button.secondary {
+  background: transparent;
+  color: inherit;
+  border: 1px solid #d4d4d8;
+}
+
+.popup button.link {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.popup .status {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.popup .status.success {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.popup .status.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.popup .warn {
+  color: #b45309;
+}
+
+.popup .muted {
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .popup .count,
+  .popup .muted {
+    color: #9ca3af;
   }
-  to {
-    transform: rotate(360deg);
+  .popup button.secondary,
+  .popup button.link {
+    border-color: #3f3f46;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .popup .status.success {
+    background: #064e3b;
+    color: #d1fae5;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  .popup .status.error {
+    background: #7f1d1d;
+    color: #fee2e2;
+  }
 }
