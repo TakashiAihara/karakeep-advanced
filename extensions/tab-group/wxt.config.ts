@@ -1,5 +1,7 @@
 import { defineConfig } from 'wxt';
 
+const isE2E = process.env.WXT_E2E === '1';
+
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
@@ -9,7 +11,9 @@ export default defineConfig({
     description:
       'Save tab groups to your Karakeep instance. OneTab-compatible UX, multi-device sync via Karakeep.',
     permissions: ['tabs', 'storage', 'contextMenus', 'notifications'],
-    optional_host_permissions: ['<all_urls>'],
+    ...(isE2E
+      ? { host_permissions: ['<all_urls>'] }
+      : { optional_host_permissions: ['<all_urls>'] }),
     commands: {
       'save-tab-group': {
         suggested_key: { default: 'Ctrl+Shift+E' },

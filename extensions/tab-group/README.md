@@ -11,9 +11,13 @@ See [../../docs/karakeep-advanced.md](../../docs/karakeep-advanced.md) for the f
 ```bash
 bun --filter '@karakeep-advanced/tab-group' typecheck
 bun --filter '@karakeep-advanced/tab-group' build           # outputs .output/chrome-mv3/
+bun --filter '@karakeep-advanced/tab-group' build:e2e       # build with host_permissions required (for Playwright)
+bun --filter '@karakeep-advanced/tab-group' test:e2e        # build:e2e + run Playwright (in-memory mock Karakeep)
 bun --filter '@karakeep-advanced/tab-group' dev             # HMR, launches Chrome
 bun --filter '@karakeep-advanced/tab-group' generate:api    # regenerate src/karakeep/schema.d.ts
 ```
+
+`test:e2e` boots an in-memory mock Karakeep (`tests/e2e/fixtures/karakeep-mock.ts`) and drives the unpacked extension via Chromium. The mock implements only the endpoints the extension actually calls — see `docs/design/e2e-tests.md`.
 
 ## Load the extension in Chrome (manual smoke test for PR1)
 
