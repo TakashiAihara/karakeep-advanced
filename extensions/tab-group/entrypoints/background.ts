@@ -1,3 +1,5 @@
+import { registerMessageHandler } from '@/src/messaging/handler';
+
 export default defineBackground(() => {
-  console.log('Hello background!', { id: browser.runtime.id });
+  registerMessageHandler();
 });
