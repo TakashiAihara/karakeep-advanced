@@ -52,6 +52,14 @@ Result is announced via a desktop notification (`Saved M/N → <subListName>`); 
 3. Click or press Enter on a hit &rarr; opens the URL in a new active tab and closes the popup.
 4. Hold Cmd (mac) / Ctrl (other) while hitting Enter / clicking &rarr; opens in a background tab; the popup stays open.
 
+## Manual smoke test for PR5 (recent groups & Open all)
+
+1. Save at least one tab group via the **Save** tab first.
+2. Switch to the **Recent** tab in the popup.
+3. Recent sub-lists under `Tab Groups` show up with their saved-tab count.
+4. Click **Open all (N)** on a row &rarr; a confirm dialog appears (`Open N tabs from "<name>"?`).
+5. Confirm &rarr; the bookmarks are reopened as background tabs in the current window.
+
 ## Status
 
-PR4 (popup save + keyboard shortcuts + bookmark search/restore). Recent groups list and OneTab import land in later PRs &mdash; see the design doc.
+PR5 (popup save + keyboard shortcuts + search/restore + recent groups with Open all). Only OneTab import remains for Phase 1 &mdash; see the design doc.

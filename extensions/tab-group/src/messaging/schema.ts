@@ -21,12 +21,22 @@ export type SearchHit = {
   faviconUrl: string | null;
 };
 
+export type GroupSummary = {
+  id: string;
+  name: string;
+  tabCount: number | null;
+};
+
 export type Request =
   | { type: 'SAVE_AND_CLOSE'; scope: SaveScope }
   | { type: 'SAVE_WITHOUT_CLOSING'; scope: SaveScope }
-  | { type: 'SEARCH'; q: string; cursor?: string };
+  | { type: 'SEARCH'; q: string; cursor?: string }
+  | { type: 'LIST_RECENT_GROUPS'; limit?: number }
+  | { type: 'OPEN_GROUP'; listId: string };
 
 export type Response =
   | { type: 'SAVED'; result: SaveResult }
   | { type: 'SEARCH_RESULT'; hits: SearchHit[]; nextCursor: string | null }
+  | { type: 'RECENT_GROUPS'; groups: GroupSummary[] }
+  | { type: 'OPENED'; opened: number; total: number }
   | { type: 'ERROR'; message: string; code?: 'UNCONFIGURED' | 'NO_TABS' | 'KARAKEEP' };
