@@ -33,7 +33,21 @@ export const test = base.extend<Fixtures>({
 
   serviceWorker: async ({ context }, use) => {
     let [sw] = context.serviceWorkers();
-    if (!sw) sw = await context.waitForEvent('serviceworker');
+    if (!sw) {
+      // Wake the MV3 service worker by opening chrome://extensions —
+      // launchPersistentContext alone does not always trigger SW registration
+      // in headless chromium.
+      const wake = await context.newPage();
+      await wake.goto('chrome://extensions/').catch(() => undefined);
+      const deadline = Date.now() + 15_000;
+      while (Date.now() < deadline) {
+        [sw] = context.serviceWorkers();
+        if (sw) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      await wake.close().catch(() => undefined);
+    }
+    if (!sw) throw new Error('extension service worker did not register');
     await use(sw);
   },
 

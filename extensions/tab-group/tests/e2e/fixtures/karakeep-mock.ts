@@ -131,6 +131,17 @@ export function startMockServer(): Promise<MockServer> {
       const pathname = url.pathname;
       const method = req.method ?? 'GET';
 
+      // Static test pages served alongside the Karakeep mock so the
+      // extension can save real http URLs that we control. No auth.
+      if (pathname.startsWith('/page/') && method === 'GET') {
+        const slug = pathname.slice('/page/'.length);
+        res.writeHead(200, { 'content-type': 'text/html' });
+        res.end(
+          `<!doctype html><html><head><title>${slug}</title></head><body><h1>${slug}</h1></body></html>`,
+        );
+        return;
+      }
+
       const auth = req.headers['authorization'];
       if (!auth || !auth.startsWith('Bearer ')) {
         writeUnauthorized(res);
@@ -322,8 +333,9 @@ export function startMockServer(): Promise<MockServer> {
         url: `http://127.0.0.1:${port}`,
         store,
         stop: () =>
-          new Promise<void>((res, rej) => {
-            server.close((err) => (err ? rej(err) : res()));
+          new Promise<void>((res) => {
+            server.closeAllConnections();
+            server.close(() => res());
           }),
       });
     });
