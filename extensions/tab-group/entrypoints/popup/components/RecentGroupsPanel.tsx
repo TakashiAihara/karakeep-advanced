@@ -179,6 +179,7 @@ export default function RecentGroupsPanel() {
                   type="button"
                   className="icon"
                   title="Rename"
+                  aria-label="Rename"
                   onClick={() => setEdit({ listId: group.id, draft: group.name })}
                   disabled={anyBusy}
                 >
@@ -188,6 +189,7 @@ export default function RecentGroupsPanel() {
                   type="button"
                   className="icon"
                   title="Delete"
+                  aria-label="Delete"
                   onClick={() => void remove(group)}
                   disabled={anyBusy}
                 >
