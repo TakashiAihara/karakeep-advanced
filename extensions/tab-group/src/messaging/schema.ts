@@ -19,6 +19,8 @@ export type SaveResult = {
   totalCount: number;
   savedCount: number;
   failed: SaveError[];
+  /** Whether the caller asked for the tabs to be closed, not whether any were. */
+  closeAfter: boolean;
   closedTabs: number;
 };
 

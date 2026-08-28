@@ -30,13 +30,20 @@ function toErrorResponse(err: unknown): Extract<Response, { type: 'ERROR' }> {
   };
 }
 
+const SAVE_REQUESTS: ReadonlySet<Request['type']> = new Set([
+  'SAVE_AND_CLOSE',
+  'SAVE_WITHOUT_CLOSING',
+  'RESUME_JOB',
+  'RETRY_FAILED',
+]);
+
 /**
- * Saves are reported by notification rather than only by the popup's own result UI.
+ * Every save outcome is announced from here, and only from here.
  *
- * "Save and close" with scope=all takes the whole window down, which destroys the popup
- * before it can render anything, so on the most common path the in-popup result is
- * unreachable. The shortcut and context-menu paths already notified; this makes the popup
- * path behave the same.
+ * "Save and close" with scope=all takes the whole window down, destroying the popup before
+ * it can render anything, so the in-popup result is unreachable on the most common path.
+ * Making this the single owner is what keeps the shortcut and context-menu paths — which
+ * used to notify themselves — from stacking a second identical toast.
  */
 async function announceSave(result: SaveResult): Promise<void> {
   await notify(NOTIFY_TITLE, describeSaveResult(result));
@@ -45,11 +52,11 @@ async function announceSave(result: SaveResult): Promise<void> {
 export async function handle(request: Request): Promise<Response> {
   const config = await loadKarakeepConfig();
   if (!config.serverUrl || !config.apiKey) {
-    return {
-      type: 'ERROR',
-      code: 'UNCONFIGURED',
-      message: 'Karakeep is not configured. Open Options to set the server URL and API key.',
-    };
+    const message =
+      'Karakeep is not configured. Open Options to set the server URL and API key.';
+    // a shortcut or context-menu save has no UI to show this in
+    if (SAVE_REQUESTS.has(request.type)) await notify(NOTIFY_TITLE, message);
+    return { type: 'ERROR', code: 'UNCONFIGURED', message };
   }
   configureKarakeep(config);
 
@@ -68,7 +75,7 @@ export async function handle(request: Request): Promise<Response> {
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           const code = /no saveable tabs/i.test(message) ? 'NO_TABS' : 'KARAKEEP';
-          if (code === 'KARAKEEP') await notify(NOTIFY_TITLE, message);
+          await notify(NOTIFY_TITLE, message);
           return { type: 'ERROR', code, message };
         }
       }
@@ -147,7 +154,9 @@ export async function handle(request: Request): Promise<Response> {
     }
   } catch (err) {
     console.error('[karakeep-advanced] request failed', request.type, err);
-    return toErrorResponse(err);
+    const response = toErrorResponse(err);
+    if (SAVE_REQUESTS.has(request.type)) await notify(NOTIFY_TITLE, response.message);
+    return response;
   }
 
   return { type: 'ERROR', message: 'Unknown request type.' };

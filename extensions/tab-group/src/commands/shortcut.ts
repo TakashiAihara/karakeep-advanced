@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
 import { handle } from '@/src/messaging/handler';
 import type { Response } from '@/src/messaging/schema';
-import { describeSaveResult, notify, NOTIFY_TITLE } from '@/src/util/notify';
+import { notify, NOTIFY_TITLE } from '@/src/util/notify';
 
 export const SAVE_AND_CLOSE_COMMAND = 'save-tab-group';
 export const SAVE_WITHOUT_CLOSING_COMMAND = 'save-without-closing';
@@ -16,6 +16,8 @@ export async function runShortcutCommand(command: string): Promise<void> {
 
   const close = command === SAVE_AND_CLOSE_COMMAND;
 
+  // handle() announces every save outcome itself, so nothing is reported here; doing it
+  // in both places stacked two identical toasts on every shortcut press.
   let response: Response;
   try {
     response = await handle(
@@ -24,20 +26,14 @@ export async function runShortcutCommand(command: string): Promise<void> {
         : { type: 'SAVE_WITHOUT_CLOSING', scope: 'all' },
     );
   } catch (err) {
-    // there is no popup on the shortcut path, so a rejection here is otherwise silent
+    // a rejection escaping handle() bypasses its notification, and there is no popup here
     await notify(NOTIFY_TITLE, err instanceof Error ? err.message : String(err));
     return;
   }
 
-  if (response.type === 'SAVED') {
-    await notify(NOTIFY_TITLE, describeSaveResult(response.result));
-    return;
+  if (response.type !== 'SAVED' && response.type !== 'ERROR') {
+    await notify(NOTIFY_TITLE, `Unexpected response to a save (${response.type}).`);
   }
-  if (response.type === 'ERROR') {
-    await notify(NOTIFY_TITLE, response.message);
-    return;
-  }
-  await notify(NOTIFY_TITLE, `Unexpected response to a save (${response.type}).`);
 }
 
 export function registerShortcutCommands(): void {

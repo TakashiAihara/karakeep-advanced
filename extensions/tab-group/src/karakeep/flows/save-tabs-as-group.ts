@@ -258,12 +258,10 @@ async function runJob(job: SaveJob): Promise<SaveResult> {
 
   let subListId = job.subListId;
   if (!subListId) {
-    try {
-      subListId = await resolveSubList(job.subListName);
-    } catch (err) {
-      await saveJobItem.setValue(null);
-      throw err;
-    }
+    // A failure here used to clear the job record, on the assumption that nothing had been
+    // created yet. That does not hold when the request reached Karakeep and only the
+    // response was lost, so the record stays and its staleness bound retires it instead.
+    subListId = await resolveSubList(job.subListName);
     job.subListId = subListId;
     await writer.flush();
   }
@@ -290,6 +288,7 @@ async function runJob(job: SaveJob): Promise<SaveResult> {
     totalCount: job.tabs.length,
     savedCount,
     failed,
+    closeAfter: job.closeAfter,
     closedTabs,
   };
 
@@ -311,6 +310,17 @@ export type SaveOptions = {
 };
 
 export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult> {
+  // Starting a fresh save used to overwrite an unfinished one. Pressing the shortcut again
+  // is the natural reaction to a save that appeared to stall, and it is the only affordance
+  // on that path, so the record of what was already written to Karakeep was destroyed by
+  // exactly the gesture a stalled save provokes.
+  const pending = await getPendingJob();
+  if (pending) {
+    throw new Error(
+      `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
+    );
+  }
+
   const tabs = await selectTabs(options.scope, options.overrides);
   if (tabs.length === 0) {
     throw new Error('No saveable tabs (http/https) found in this window.');
