@@ -15,6 +15,7 @@ import {
   excludePinnedItem,
   lastSaveReportItem,
   recentGroupIdsItem,
+  isJobStale,
   saveJobItem,
   type SaveJob,
   type SaveJobTab,
@@ -342,6 +343,11 @@ export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult>
 export async function getPendingJob(): Promise<SaveJob | null> {
   const job = await saveJobItem.getValue();
   if (!job || job.finishedAt) return null;
+
+  if (isJobStale(job.startedAt, Date.now())) {
+    await saveJobItem.setValue(null);
+    return null;
+  }
   return job;
 }
 

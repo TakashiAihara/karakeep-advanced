@@ -1,4 +1,8 @@
 import { storage } from 'wxt/utils/storage';
+import type { SaveJob } from './save-job';
+
+export type { SaveJob, SaveJobTab, SaveJobTabState } from './save-job';
+export { isJobStale, SAVE_JOB_MAX_AGE_MS } from './save-job';
 
 export const serverUrlItem = storage.defineItem<string>('local:serverUrl', {
   fallback: '',
@@ -33,38 +37,7 @@ export const consumeOnOpenItem = storage.defineItem<boolean>('local:consumeOnOpe
   fallback: false,
 });
 
-export type SaveJobTabState = 'pending' | 'bookmarked' | 'attached' | 'failed';
-
-export type SaveJobTab = {
-  tabId: number | null;
-  url: string;
-  title: string;
-  bookmarkId: string | null;
-  state: SaveJobTabState;
-  reason: string | null;
-};
-
-/**
- * A save in flight.
- *
- * This exists because the MV3 service worker can be terminated mid-save. Without a
- * record, the bookmarks and sub-list already created in Karakeep become invisible to
- * the extension (recentGroupIds is only written at the very end) and a re-run creates
- * a second sub-list. Held in `session:` so it survives worker restarts but not a
- * browser restart — a job older than the browser session is not worth resuming.
- */
-export type SaveJob = {
-  jobId: string;
-  scope: string;
-  closeAfter: boolean;
-  subListId: string | null;
-  subListName: string;
-  tabs: SaveJobTab[];
-  startedAt: string;
-  finishedAt: string | null;
-};
-
-export const saveJobItem = storage.defineItem<SaveJob | null>('session:saveJob', {
+export const saveJobItem = storage.defineItem<SaveJob | null>('local:saveJob', {
   fallback: null,
 });
 
