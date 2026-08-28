@@ -10,11 +10,7 @@ async function seedTabGroupsListId(serviceWorker: Worker, parentId: string): Pro
   );
 }
 
-// TODO: Selected scope needs chrome.tabs.highlight + tabs ordering, but
-// chrome.tabs.highlight resets `active` and creating the popup tab perturbs
-// the highlighted set. Skip until we have a stable strategy (likely:
-// drive the save via SW.evaluate directly instead of the popup UI).
-test.skip('Selected scope saves only highlighted tabs', async ({
+test('Selected scope saves only highlighted tabs', async ({
   context,
   extensionId,
   serviceWorker,
@@ -27,25 +23,47 @@ test.skip('Selected scope saves only highlighted tabs', async ({
   const c = await context.newPage();
   await c.goto(`${configuredMock.url}/page/c`);
 
-  // Highlight only a and b in the same window via chrome.tabs API.
-  await serviceWorker.evaluate(async () => {
-    // @ts-expect-error chrome global
+  // Under Playwright the popup runs as an ordinary tab, so opening it after
+  // highlighting would reset the highlighted set to the popup alone. Open it
+  // blank first, then highlight [popup, a, b] in one call: the popup's
+  // chrome-extension:// URL is dropped by the saveable-URL filter — a rule
+  // that applies to every scope, not an ordering quirk of this one —
+  // leaving exactly a and b as the selected scope. Navigate to popup.html
+  // only afterwards, because the popup snapshots tabs on mount.
+  const popup = await context.newPage();
+
+  const highlightedUrls = await serviceWorker.evaluate(async () => {
+    // @ts-expect-error chrome global is available inside the extension service worker
     const win = await chrome.windows.getCurrent();
+    const all: Array<{ index: number; url?: string; active?: boolean }> =
+      // @ts-expect-error chrome global
+      await chrome.tabs.query({ windowId: win.id });
+    const popupTab = all.find((t) => t.active);
+    if (!popupTab) throw new Error('no active tab to use as the popup host');
+    const pageTabs = all.filter((t) => /\/page\/(a|b)$/.test(t.url ?? ''));
     // @ts-expect-error chrome global
-    const all = await chrome.tabs.query({ windowId: win.id });
-    // pick the two pages whose URLs end with /page/a and /page/b
-    const target = all
-      .filter((t: { url?: string }) => /\/page\/(a|b)$/.test(t.url ?? ''))
-      .map((t: { index: number }) => t.index);
-    // @ts-expect-error chrome global
-    await chrome.tabs.highlight({ windowId: win.id, tabs: target });
+    await chrome.tabs.highlight({
+      windowId: win.id,
+      tabs: [popupTab.index, ...pageTabs.map((t) => t.index)],
+    });
+    const after: Array<{ url?: string }> =
+      // @ts-expect-error chrome global
+      await chrome.tabs.query({ windowId: win.id, highlighted: true });
+    return after.map((t) => t.url ?? '');
   });
 
-  const popup = await context.newPage();
+  // Guard the fixture, not the behaviour: if the popup tab were misidentified
+  // and a page tab got highlighted in its place, the scope would still resolve
+  // to two tabs and the assertions below would pass for the wrong reason. The
+  // behaviour itself is pinned by the saved-URL assertion at the end.
+  expect(highlightedUrls.filter((u) => u.startsWith('http')).sort()).toEqual(
+    [`${configuredMock.url}/page/a`, `${configuredMock.url}/page/b`].sort(),
+  );
+
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
 
   await popup.getByRole('radio', { name: /Selected/ }).click();
-  await expect(popup.locator('.count')).toContainText('selected tab');
+  await expect(popup.locator('.count')).toContainText('2 selected tabs will be saved');
 
   await popup.getByRole('button', { name: 'Save without closing' }).click();
   await expect(popup.locator('.status.success')).toContainText(/Saved 2\/2/);
@@ -61,11 +79,7 @@ test.skip('Selected scope saves only highlighted tabs', async ({
   );
 });
 
-// TODO: Rename / Delete tests rely on Recent showing seeded sub-lists.
-// The storage seed (tabGroupsListId) does not always reach the popup before
-// it issues LIST_RECENT_GROUPS — needs investigation (likely WXT defineItem
-// cache priming). Skip for now.
-test.skip('Rename updates the sub-list name via PATCH', async ({
+test('Rename updates the sub-list name via PATCH', async ({
   context,
   extensionId,
   serviceWorker,
@@ -118,7 +132,7 @@ test.skip('Rename updates the sub-list name via PATCH', async ({
   expect(configuredMock.store.lists.get(subId)?.name).toBe('Renamed group');
 });
 
-test.skip('Delete removes the sub-list via DELETE and drops it from Recent', async ({
+test('Delete removes the sub-list via DELETE and drops it from Recent', async ({
   context,
   extensionId,
   serviceWorker,
