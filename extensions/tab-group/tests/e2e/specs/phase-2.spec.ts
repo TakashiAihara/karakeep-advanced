@@ -25,14 +25,14 @@ test('Selected scope saves only highlighted tabs', async ({
 
   // Under Playwright the popup runs as an ordinary tab, so opening it after
   // highlighting would reset the highlighted set to the popup alone. Open it
-  // blank first, then highlight [popup, a, b] in one call: the first index
-  // stays active (so Playwright keeps driving a foreground tab) and the
-  // popup's chrome-extension:// URL is dropped by the saveable-URL filter,
+  // blank first, then highlight [popup, a, b] in one call: the popup's
+  // chrome-extension:// URL is dropped by the saveable-URL filter — a rule
+  // that applies to every scope, not an ordering quirk of this one —
   // leaving exactly a and b as the selected scope. Navigate to popup.html
   // only afterwards, because the popup snapshots tabs on mount.
   const popup = await context.newPage();
 
-  const highlighted = await serviceWorker.evaluate(async () => {
+  const highlightedUrls = await serviceWorker.evaluate(async () => {
     // @ts-expect-error chrome global is available inside the extension service worker
     const win = await chrome.windows.getCurrent();
     const all: Array<{ index: number; url?: string; active?: boolean }> =
@@ -52,9 +52,11 @@ test('Selected scope saves only highlighted tabs', async ({
     return after.map((t) => t.url ?? '');
   });
 
-  // Guard the fixture itself: only a and b may reach the extension as
-  // http(s) highlighted tabs, otherwise the assertion below proves nothing.
-  expect(highlighted.filter((u) => u.startsWith('http')).sort()).toEqual(
+  // Guard the fixture, not the behaviour: if the popup tab were misidentified
+  // and a page tab got highlighted in its place, the scope would still resolve
+  // to two tabs and the assertions below would pass for the wrong reason. The
+  // behaviour itself is pinned by the saved-URL assertion at the end.
+  expect(highlightedUrls.filter((u) => u.startsWith('http')).sort()).toEqual(
     [`${configuredMock.url}/page/a`, `${configuredMock.url}/page/b`].sort(),
   );
 
