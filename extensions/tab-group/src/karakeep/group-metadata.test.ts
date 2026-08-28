@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatClock,
   formatGroupDescription,
   parseGroupDescription,
   parseLegacyTabCount,
@@ -20,16 +21,21 @@ function marker(payload: string): string {
 
 describe('formatGroupDescription', () => {
   it('writes a human line and a marker line', () => {
-    const description = formatGroupDescription({
-      v: 1,
-      tabCount: 12,
-      savedAt: '2026-08-28T06:00:00Z',
-      lastOpenedAt: null,
-    });
+    const description = formatGroupDescription(
+      {
+        v: 1,
+        tabCount: 12,
+        savedAt: '2026-08-28T06:00:00Z',
+        lastOpenedAt: null,
+      },
+      540,
+    );
 
     const lines = description.split('\n');
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toMatch(/^12 tabs · saved \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    // asserted exactly, not by shape: a shape regex here stayed green while the month,
+    // the day-of-month and the hour were each corrupted in turn
+    expect(lines[0]).toBe('12 tabs · saved 2026-08-28 15:00 +09:00');
     expect(lines[1]).toBe(
       marker('{"v":1,"tabCount":12,"savedAt":"2026-08-28T06:00:00.000Z","lastOpenedAt":null}'),
     );
@@ -226,5 +232,52 @@ describe('readGroupMetadata', () => {
 
   it('returns nulls when neither side says anything', () => {
     expect(readGroupMetadata('Work', null)).toEqual(EMPTY);
+  });
+});
+
+describe('formatClock', () => {
+  const INSTANT = '2026-08-28T06:00:00.000Z';
+
+  // The description is written once and read verbatim on every other machine, so the
+  // rendered clock has to say which offset it is in. Without the tag, this same instant
+  // reads as 2026-08-28 in Tokyo and 2026-08-27 in Los Angeles with nothing to tell them
+  // apart. These assert exact strings on purpose: a shape regex passed while the month,
+  // the day-of-month and the hour were all corrupted.
+  it.each([
+    [540, '2026-08-28 15:00 +09:00'],
+    [0, '2026-08-28 06:00 +00:00'],
+    [-420, '2026-08-27 23:00 -07:00'],
+    [330, '2026-08-28 11:30 +05:30'],
+    [-210, '2026-08-28 02:30 -03:30'],
+  ])('renders %i minutes east of UTC as %s', (offset, expected) => {
+    expect(formatClock(INSTANT, offset)).toBe(expected);
+  });
+
+  it('crosses the year boundary correctly', () => {
+    expect(formatClock('2026-12-31T20:00:00.000Z', 540)).toBe('2027-01-01 05:00 +09:00');
+  });
+
+  it('returns an empty string for an unparseable instant rather than "NaN"', () => {
+    expect(formatClock('not a date', 540)).toBe('');
+  });
+});
+
+describe('formatGroupDescription clock rendering', () => {
+  it('tags the human line with the offset it was rendered in', () => {
+    const text = formatGroupDescription(
+      { v: 1, tabCount: 12, savedAt: '2026-08-28T06:00:00.000Z', lastOpenedAt: null },
+      540,
+    );
+    expect(text.split('\n')[0]).toBe('12 tabs · saved 2026-08-28 15:00 +09:00');
+  });
+
+  // The machine that renders the human line is not the one that reads it, but the JSON
+  // line must be identical either way — that is what makes the round trip offset-proof.
+  it('produces the same machine line regardless of the rendering offset', () => {
+    const meta = { v: 1, tabCount: 12, savedAt: '2026-08-28T06:00:00.000Z', lastOpenedAt: null } as const;
+    const tokyo = formatGroupDescription(meta, 540).split('\n')[1];
+    const la = formatGroupDescription(meta, -420).split('\n')[1];
+    expect(tokyo).toBe(la);
+    expect(parseGroupDescription(formatGroupDescription(meta, -420)).savedAt).toBe(meta.savedAt);
   });
 });

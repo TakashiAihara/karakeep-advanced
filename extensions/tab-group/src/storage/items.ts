@@ -1,8 +1,11 @@
 import { storage } from 'wxt/utils/storage';
 import type { SaveJob } from './save-job';
+import type { ListIndexCache } from './list-cache';
 
 export type { SaveJob, SaveJobTab, SaveJobTabState } from './save-job';
 export { isJobStale, SAVE_JOB_MAX_AGE_MS } from './save-job';
+export type { CachedList, ListIndexCache } from './list-cache';
+export { isCacheFresh, LIST_CACHE_TTL_MS } from './list-cache';
 
 export const serverUrlItem = storage.defineItem<string>('local:serverUrl', {
   fallback: '',
@@ -63,25 +66,6 @@ export const lastSaveReportItem = storage.defineItem<SaveReport | null>(
   { fallback: null },
 );
 
-export type CachedList = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  description: string | null;
-};
-
-export type ListIndexCache = {
-  lists: CachedList[];
-  syncedAt: string;
-};
-
-/**
- * Mirror of GET /lists.
- *
- * `GET /lists` takes no query parameters at all (schema.d.ts: `query?: never`), so the
- * server cannot filter or paginate and every Recent render would otherwise refetch the
- * entire list set. This is a cache, never the authority — revalidate replaces it whole.
- */
 export const listIndexCacheItem = storage.defineItem<ListIndexCache | null>(
   'local:listIndexCache',
   { fallback: null },

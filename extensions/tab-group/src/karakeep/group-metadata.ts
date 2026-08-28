@@ -39,20 +39,48 @@ function pad2(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-function formatClock(iso: string): string {
-  const at = new Date(iso);
-  const date = `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}`;
-  return `${date} ${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+/** Minutes east of UTC for the machine writing the description. */
+export function localOffsetMinutes(at: Date): number {
+  return -at.getTimezoneOffset();
 }
 
-export function formatGroupDescription(meta: GroupMetadata): string {
+/**
+ * Render an instant for the human line, tagged with the offset it is rendered in.
+ *
+ * The description is written once by whichever machine performed the save and then read
+ * verbatim by every other one, so a bare local clock is not merely imprecise: the same
+ * instant renders a calendar day apart between Asia/Tokyo and America/Los_Angeles, and the
+ * reader has no way to tell which machine's day it is looking at. The offset is what makes
+ * the line answerable. The JSON line remains the authoritative instant.
+ */
+export function formatClock(iso: string, offsetMinutes: number): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return '';
+
+  const shifted = new Date(at.getTime() + offsetMinutes * 60_000);
+  const date = `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(
+    shifted.getUTCDate(),
+  )}`;
+  const clock = `${pad2(shifted.getUTCHours())}:${pad2(shifted.getUTCMinutes())}`;
+
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const abs = Math.abs(offsetMinutes);
+  const zone = `${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
+
+  return `${date} ${clock} ${zone}`;
+}
+
+export function formatGroupDescription(
+  meta: GroupMetadata,
+  offsetMinutes: number = localOffsetMinutes(new Date()),
+): string {
   const tabCount = normalizeTabCount(meta?.tabCount);
   const savedAt = normalizeTimestamp(meta?.savedAt);
   const lastOpenedAt = normalizeTimestamp(meta?.lastOpenedAt);
 
   const parts: string[] = [];
   if (tabCount !== null) parts.push(`${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'}`);
-  if (savedAt !== null) parts.push(`saved ${formatClock(savedAt)}`);
+  if (savedAt !== null) parts.push(`saved ${formatClock(savedAt, offsetMinutes)}`);
 
   const payload = JSON.stringify({ v: 1, tabCount, savedAt, lastOpenedAt });
   const marker = `<!-- ka:${payload} -->`;

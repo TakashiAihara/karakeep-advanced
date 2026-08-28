@@ -3,6 +3,7 @@ import { readGroupMetadata } from '@/src/karakeep/group-metadata';
 import type { components } from '@/src/karakeep/schema';
 import type { GroupSummary } from '@/src/messaging/schema';
 import {
+  isCacheFresh,
   listIndexCacheItem,
   recentGroupIdsItem,
   tabGroupsListIdItem,
@@ -83,8 +84,8 @@ async function fetchLists(): Promise<CachedList[]> {
 }
 
 // GET /lists takes no query parameters, so every Recent render would otherwise refetch every
-// list. Serve the cache first and let the caller ask again with refresh: true; `stale` says which
-// of the two it got. A cached render also beats an error when the server is unreachable.
+// list. Serve the cache while it is fresh and let the caller force a refetch; `stale` says
+// which of the two it got. A cached render also beats an error when the server is unreachable.
 export async function listRecentGroups(
   options: ListRecentGroupsOptions = {},
 ): Promise<RecentGroups> {
@@ -96,7 +97,7 @@ export async function listRecentGroups(
   ]);
   if (!parentId) return { groups: [], stale: false };
 
-  if (!options.refresh && cache) {
+  if (!options.refresh && cache && isCacheFresh(cache.syncedAt, Date.now())) {
     return { groups: orderGroups(cache.lists, parentId, recentIds, limit), stale: true };
   }
 
@@ -123,6 +124,23 @@ export async function updateCachedListName(listId: string, name: string): Promis
     return { ...list, name };
   });
   if (!changed) return;
+
+  await listIndexCacheItem.setValue({ ...cache, lists });
+}
+
+/**
+ * Drop one list from the cached index.
+ *
+ * orderGroups appends every cached sub-list under the parent regardless of recentGroupIds,
+ * so pruning that array is not enough to stop a deleted group from being offered — clicking
+ * it then 404s on GET /lists/{id}/bookmarks.
+ */
+export async function forgetCachedList(listId: string): Promise<void> {
+  const cache = await listIndexCacheItem.getValue();
+  if (!cache) return;
+
+  const lists = cache.lists.filter((list) => list.id !== listId);
+  if (lists.length === cache.lists.length) return;
 
   await listIndexCacheItem.setValue({ ...cache, lists });
 }
