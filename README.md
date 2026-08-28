@@ -21,4 +21,4 @@ The official [`karakeep-app/karakeep` browser extension](https://github.com/kara
 
 ## License
 
-TBD.
+[MIT](LICENSE)
