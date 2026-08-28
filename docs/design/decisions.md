@@ -127,3 +127,98 @@ chrome.storage は引き続き「MRU 表示順のキャッシュ」に限定し�
 
 `lastOpenedAt` を持たせるのは M4 (auto-archive) の前提。
 List に archived フラグは無いので、アーカイブは `parentId` の PATCH で別の親 list に移す方式になる (`schema.d.ts:1935`)。
+
+---
+
+## D07 — Omnibox は姉妹拡張にしない。姉妹は Highlight 1 本
+
+決定日: 2026-08-28 / 状態: 採用
+
+`docs/karakeep-advanced.md` は Highlight と Omnibox を将来の姉妹拡張として挙げているが、
+2 つの性質は違う。
+
+分割の根拠は**障害の隔離と要求 permission** に置く。
+
+- Highlight は全ページに content script を挿し `<all_urls>` を実際に要求する。
+  そこのバグがタブ保存の経路を巻き込まないことに価値がある → **別拡張**
+- Omnibox は新しい permission を要さず、保存済みグループを引くだけ。
+  別拡張にすると server URL と API key をもう一度入力させ、host permission をもう一度承認させる
+  → **tab-group (またはマネージャーページ) の機能**
+
+規則として固定する: **新しい permission を要さない機能は姉妹拡張にしない。**
+
+したがって「姉妹拡張群」は実際には Highlight 1 本であり、
+共有基盤の設計はその 1 本を前提に最小限にする。
+
+## D08 — 共有するのは `packages/karakeep` (schema + client + E2E mock) だけ
+
+決定日: 2026-08-28 / 状態: 採用
+
+D07 で姉妹が 1 本と確定したので、共有面は最小に取る。
+
+**抽出する**
+
+- `src/karakeep/schema.d.ts` と `generate:api` script — 生成物なので重複は純粋な無駄
+- `src/karakeep/client.ts` — 認証・リトライ・タイムアウトはどの Karakeep クライアントでも同じ
+- `tests/e2e/fixtures/karakeep-mock.ts` — **抽出対象で最も見落とされやすい**。
+  343 行あり、2 本目の拡張が E2E を書く時点で必ず必要になる
+
+**抽出しない**
+
+- storage のキー定義。拡張ごとに `chrome.storage` が隔離されるので、キー名を揃えても利益がゼロ
+- `flows/` 層。共有に見えて最も危ない。`resolveSubList` の冪等性はジョブの `subListId` と
+  結びついており、タブグループ固有の意味を持つ
+- messaging の union 型、`<!-- ka: -->` のパーサ、list index キャッシュ
+
+**認証情報は拡張間で共有できない** (別 origin = 別 storage、host permission も別承認)。
+`chrome.storage.sync` に逃がす案は採らない — 対象が LAN の私設 IP なので別 LAN のピアには無意味なうえ、
+構成が Google に渡る。代わりに options に設定の JSON export / import を置く。
+これは拡張間・端末間・再インストールのすべてに効き、storage スキーマを壊さない。
+
+抽出は今やる (純粋な移動で可逆、unit test が回帰を検出できる)。
+ただし **Highlight の最初の commit が入る時点で必ず見直す**。それまで package を育てない。
+
+## D09 — グループの順序は `savedAt` に移す。`recentGroupIds` は同点判定に降ろす
+
+決定日: 2026-08-28 / 状態: 採用
+
+現状の順序は `recentGroupIds` (上限 50、`local:`) で、そこから漏れた分は
+`GET /lists` が返した行順に委ねている。3 つとも問題がある。
+
+- 上限 50 は週 38 グループ保存する運用で **9 日分**。1 年後には 97% が順序の外
+- `local:` なので **2 台目のマシンでは 1 日目から全件が未定義順**
+- `listLists` は sort パラメータを持たず (`query?: never`)、応答順序をスキーマが約束していない。
+  Karakeep 側のクエリプランが変われば黙って変わる
+
+D06 の `savedAt` がサーバー側にあり、端末に依存しない。これを順序の権威にする。
+
+**移行前のグループには `savedAt` が無い**ので、名前の `YYYY-MM-DD HH:MM` を読むフォールバックを必ず併せる
+(リクエスト 0)。フォールバックが無いと、移行前の全グループが未定義順の末尾に落ちる。
+
+`recentGroupIds` は消さず「このマシンで最近触った」の同点判定として残す。
+
+**却下した案**: bookmark の `createdAt` から `savedAt` を逆算する。
+重複 URL には既存 bookmark が返る仕様なので、返るのは「グループ内で最も古い bookmark の生成時刻」で、
+実際の保存日より系統的に古い。N リクエスト払って狂った値を永続化することになる。
+
+## D10 — サーバーバージョンの変化検知は作らない
+
+決定日: 2026-08-28 / 状態: 採用
+
+**前提の訂正**: 以前「Karakeep に version endpoint は無い」と記録したが、これは誤りだった。
+`/api/version` は実在する (`packages/api/index.ts:90`、`/v1` の兄弟)。
+生成済みの `/v1` OpenAPI スキーマだけを見て API 全体について否定したのが誤りの原因。
+
+ただし検出機構としては成立しない。
+
+- `docker/Dockerfile:83` が `ARG SERVER_VERSION=nightly`
+- release ビルド以外はすべて不変文字列 `"nightly"` を返す
+- **nightly / latest を追う self-host ではアップグレードしても値が変わらない。**
+  本プロジェクトの運用形態がまさにそれ
+
+「記録した値と違えば警告」は、最も壊れやすい構成で恒久的に沈黙する。
+ネガティブコントロールが原理的に取れない検知機構は作らない。
+
+代わりに、**Karakeep を upgrade したら `bun run generate:api` で schema を再生成して diff を見る**、
+という手順を README に置く。`openapi-fetch` は実行時検証をしないので、
+breaking change は型と実体の乖離として静かに現れる。自動化ではなく手順で対処する領域。
