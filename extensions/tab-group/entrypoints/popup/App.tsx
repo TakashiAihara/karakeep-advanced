@@ -36,6 +36,15 @@ const SCOPE_LABELS: Record<PopupScope, string> = {
 
 const SCOPE_ORDER: PopupScope[] = ['all', 'others', 'selected'];
 
+const WORKER_RESTART_MESSAGE =
+  'The background worker restarted before it replied, so the result is unknown. The save may have completed — check Recent before saving again.';
+
+function describeFailure(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  if (/message port closed/i.test(raw)) return WORKER_RESTART_MESSAGE;
+  return raw || 'Something went wrong.';
+}
+
 export default function App() {
   const [view, setView] = useState<View>('save');
   const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
@@ -44,17 +53,24 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const [serverUrl, apiKey, tabs, excludePinned] = await Promise.all([
-        serverUrlItem.getValue(),
-        apiKeyItem.getValue(),
-        browser.tabs.query({ currentWindow: true }),
-        excludePinnedItem.getValue(),
-      ]);
-      if (!serverUrl || !apiKey) {
-        setReady({ kind: 'unconfigured' });
-        return;
+      try {
+        const [serverUrl, apiKey, tabs, excludePinned] = await Promise.all([
+          serverUrlItem.getValue(),
+          apiKeyItem.getValue(),
+          browser.tabs.query({ currentWindow: true }),
+          excludePinnedItem.getValue(),
+        ]);
+        if (!serverUrl || !apiKey) {
+          setReady({ kind: 'unconfigured' });
+          return;
+        }
+        setReady({ kind: 'ready', tabs, excludePinned });
+      } catch (error) {
+        // NOTE: leaving 'loading' would spin forever; an empty tab list disables every save button
+        // and lets the banner and the options link explain what happened.
+        setReady({ kind: 'ready', tabs: [], excludePinned: false });
+        setSave({ kind: 'error', message: describeFailure(error) });
       }
-      setReady({ kind: 'ready', tabs, excludePinned });
     })();
   }, []);
 
@@ -70,16 +86,26 @@ export default function App() {
 
   async function runSave(close: boolean) {
     setSave({ kind: 'saving' });
-    const response = await sendRequest(
-      close
-        ? { type: 'SAVE_AND_CLOSE', scope }
-        : { type: 'SAVE_WITHOUT_CLOSING', scope },
-    );
-    if (response.type === 'SAVED') {
-      setSave({ kind: 'success', result: response.result, closed: close });
-      return;
+    try {
+      const response = await sendRequest(
+        close
+          ? { type: 'SAVE_AND_CLOSE', scope }
+          : { type: 'SAVE_WITHOUT_CLOSING', scope },
+      );
+      if (response.type === 'SAVED') {
+        setSave({ kind: 'success', result: response.result, closed: close });
+        return;
+      }
+      setSave({ kind: 'error', message: response.message });
+    } catch (error) {
+      setSave({ kind: 'error', message: describeFailure(error) });
     }
-    setSave({ kind: 'error', message: response.message });
+  }
+
+  function openOptions() {
+    void browser.runtime.openOptionsPage().catch((error: unknown) => {
+      setSave({ kind: 'error', message: describeFailure(error) });
+    });
   }
 
   if (ready.kind === 'loading') {
@@ -95,7 +121,8 @@ export default function App() {
       <main className="popup">
         <h1>Karakeep Advanced</h1>
         <p>Configure your Karakeep server URL and API key first.</p>
-        <button onClick={() => browser.runtime.openOptionsPage()}>Open Options</button>
+        <button onClick={openOptions}>Open Options</button>
+        {save.kind === 'error' && <div className="status error">{save.message}</div>}
       </main>
     );
   }
@@ -109,7 +136,7 @@ export default function App() {
         <button
           type="button"
           className="link"
-          onClick={() => browser.runtime.openOptionsPage()}
+          onClick={openOptions}
           aria-label="Open options"
         >
           ⚙

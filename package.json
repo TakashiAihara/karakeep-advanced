@@ -7,6 +7,11 @@
   "scripts": {
     "dev": "bun --filter './extensions/*' dev",
     "build": "bun --filter './extensions/*' build",
-    "typecheck": "bun --filter './extensions/*' typecheck"
+    "typecheck": "bun --filter './extensions/*' typecheck",
+    "test:unit": "bun --filter './extensions/*' test:unit",
+    "lint": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.11"
   }
 }

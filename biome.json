@@ -1,0 +1,48 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/public",
+      "!**/assets",
+      "!extensions/tab-group/src/karakeep/schema.d.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUnreachable": "error",
+        "noConstantCondition": "error",
+        "noSwitchDeclarations": "error",
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noDoubleEquals": "error",
+        "noDuplicateCase": "error",
+        "noFallthroughSwitchClause": "error",
+        "noSelfCompare": "error",
+        "noAsyncPromiseExecutor": "error",
+        "noMisplacedAssertion": "error"
+      },
+      "complexity": {
+        "noUselessTernary": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "error"
+      }
+    }
+  }
+}
