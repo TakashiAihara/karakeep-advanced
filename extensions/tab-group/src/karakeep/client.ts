@@ -53,11 +53,67 @@ function retryAfterDelay(response: Response): number | null {
   return Math.min(Math.max(ms, 0), RETRY_MAX_DELAY_MS);
 }
 
-// Retrying a write is safe: POST /bookmarks answers 200 with the existing bookmark for a
-// duplicate URL, and PUT /lists/{listId}/bookmarks/{bookmarkId} is idempotent.
+/**
+ * Whether repeating this request can create a second thing.
+ *
+ * A 502 or 504 from a proxy in front of a restarting Karakeep usually means the write
+ * landed and only the answer was lost, so retrying a non-idempotent write duplicates it.
+ * That is exactly the sub-list duplication the save flow was reworked to prevent, and
+ * retrying blindly would have reintroduced it one layer down.
+ *
+ * GET, PUT and DELETE are idempotent by HTTP semantics, and PATCH here assigns fields
+ * rather than accumulating, so repeating it lands on the same state. Of the POSTs, only
+ * /bookmarks is safe: it answers 200 with the existing bookmark for a duplicate URL
+ * (documented on createBookmark). POST /lists has no such guarantee and must not repeat.
+ */
+export function isRetryableRequest(method: string, url: string): boolean {
+  const verb = method.toUpperCase();
+  if (verb === 'GET' || verb === 'HEAD' || verb === 'PUT' || verb === 'DELETE') return true;
+  if (verb === 'PATCH') return true;
+  if (verb !== 'POST') return false;
+
+  const path = (() => {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url;
+    }
+  })();
+  return /\/bookmarks\/?$/.test(path);
+}
+
+/**
+ * Statuses the fetch spec defines as null-body.
+ *
+ * Rebuilding one of these with a body is a spec violation that browsers reject, so the body
+ * is dropped explicitly rather than handed to the Response constructor. Not verified here:
+ * Bun, which runs the unit tests, accepts it either way, so this guard is load-bearing only
+ * in the browser the extension actually ships to.
+ */
+const BODILESS_STATUSES: ReadonlySet<number> = new Set([204, 205, 304]);
+
+async function bufferResponse(raw: Response): Promise<Response> {
+  if (BODILESS_STATUSES.has(raw.status)) {
+    await raw.arrayBuffer().catch(() => undefined);
+    return new Response(null, {
+      status: raw.status,
+      statusText: raw.statusText,
+      headers: raw.headers,
+    });
+  }
+
+  const body = await raw.arrayBuffer();
+  return new Response(body, {
+    status: raw.status,
+    statusText: raw.statusText,
+    headers: raw.headers,
+  });
+}
+
 function createRetryingFetch(policy: RetryPolicy): (input: Request) => Promise<Response> {
   return async (input) => {
     let delayBudgetMs = RETRY_MAX_TOTAL_DELAY_MS;
+    const retryable = isRetryableRequest(input.method, input.url);
 
     for (let attempt = 1; ; attempt++) {
       const timeout = new AbortController();
@@ -68,9 +124,14 @@ function createRetryingFetch(policy: RetryPolicy): (input: Request) => Promise<R
       let response: Response | null = null;
       let failure: unknown = null;
       try {
-        response = await globalThis.fetch(input.clone(), {
+        const raw = await globalThis.fetch(input.clone(), {
           signal: AbortSignal.any([input.signal, timeout.signal]),
         });
+        // The body is read here, while the timer is still armed. Clearing the timeout as
+        // soon as headers arrive left the body read unbounded, so a server that answered
+        // and then stalled mid-body hung for as long as it liked. Buffering also disposes
+        // of the bodies of responses that are about to be retried and thrown away.
+        response = await bufferResponse(raw);
       } catch (e) {
         failure = e;
       } finally {
@@ -79,6 +140,10 @@ function createRetryingFetch(policy: RetryPolicy): (input: Request) => Promise<R
 
       if (response && !RETRYABLE_STATUSES.has(response.status)) return response;
       if (input.signal.aborted) throw failure ?? input.signal.reason;
+      if (!retryable) {
+        if (response) return response;
+        throw failure ?? new Error('Karakeep request failed.');
+      }
       if (attempt >= policy.maxAttempts) {
         if (response) return response;
         throw failure ?? new Error('Karakeep request failed.');
