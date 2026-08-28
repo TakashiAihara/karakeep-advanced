@@ -36,7 +36,11 @@ async function fetchUrls(listId: string): Promise<{ urls: string[]; truncated: b
       throw new Error(`Failed to load bookmarks for list ${listId} (HTTP ${response.status}).`);
     }
     for (const bookmark of data.bookmarks) {
-      if (bookmark.content.type === 'link') urls.push(bookmark.content.url);
+      if (bookmark.content.type !== 'link') continue;
+      // Archiving a bookmark in Karakeep is the user saying they are done with it. Opening
+      // it again because it still sits in a group ignores that.
+      if (bookmark.archived) continue;
+      urls.push(bookmark.content.url);
     }
     if (!data.nextCursor) return { urls, truncated: false };
     cursor = data.nextCursor;

@@ -37,6 +37,9 @@ export async function listGroupTabs(listId: string): Promise<GroupTab[]> {
         bookmarkId: bookmark.id,
         url: bookmark.content.url,
         title: bookmark.title || bookmark.content.title || '',
+        // Surfaced rather than filtered: the group still contains it, and hiding it would
+        // make the count disagree with what "Open all" does.
+        archived: bookmark.archived,
       });
     }
     if (!data.nextCursor) break;

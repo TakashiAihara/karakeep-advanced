@@ -43,6 +43,8 @@ export type GroupTab = {
   bookmarkId: string;
   url: string;
   title: string;
+  /** Archived in Karakeep. Listed, but skipped by "Open all". */
+  archived: boolean;
 };
 
 export type ImportFailure = {
