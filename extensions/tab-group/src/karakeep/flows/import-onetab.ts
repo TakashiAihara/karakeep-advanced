@@ -1,10 +1,10 @@
 import { getKarakeep } from '@/src/karakeep/client';
+import { buildGroupCreateBody } from '@/src/karakeep/group-create';
 import { ensureTabGroupsList } from './ensure-tab-groups-list';
 import { mapWithConcurrency } from '@/src/util/concurrency';
 import { parseOneTabExport, type OneTabGroup } from '@/src/parsers/one-tab-export';
 import { recentGroupIdsItem } from '@/src/storage/items';
 
-const SUB_LIST_ICON = '📑';
 const SOURCE = 'import' as const;
 const REQUEST_CONCURRENCY = 3;
 const RECENT_GROUP_HISTORY = 50;
@@ -62,12 +62,14 @@ async function importGroup(
 
   if (!subListId) {
     const created = await client.POST('/lists', {
-      body: {
+      // savedAt is the import time, not the original session time: the OneTab export format
+      // carries no timestamps at all, so there is nothing truer to record.
+      body: buildGroupCreateBody({
         name: subListName,
-        icon: SUB_LIST_ICON,
-        type: 'manual',
         parentId,
-      },
+        tabCount: group.entries.length,
+        savedAt: new Date().toISOString(),
+      }),
     });
     if (created.error || !created.data) {
       return {

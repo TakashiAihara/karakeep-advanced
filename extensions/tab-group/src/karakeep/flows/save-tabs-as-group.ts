@@ -5,6 +5,7 @@ import {
   PARENT_LIST_NAME,
 } from './ensure-tab-groups-list';
 import { getKarakeep } from '@/src/karakeep/client';
+import { buildGroupCreateBody, type NewGroup } from '@/src/karakeep/group-create';
 import type {
   SaveError,
   SaveOverrides,
@@ -23,7 +24,6 @@ import {
 import { mapWithConcurrency } from '@/src/util/concurrency';
 import { selectSaveableTabs } from '@/src/util/saveable-tabs';
 
-const SUB_LIST_ICON = '📑';
 const SOURCE = 'extension' as const;
 const REQUEST_CONCURRENCY = 3;
 const RECENT_GROUP_HISTORY = 50;
@@ -95,14 +95,9 @@ function createJobWriter(job: SaveJob): JobWriter {
 
 type SubListAttempt = { id: string | null; status: number };
 
-async function createSubList(parentId: string, name: string): Promise<SubListAttempt> {
+async function createSubList(group: NewGroup): Promise<SubListAttempt> {
   const created = await getKarakeep().POST('/lists', {
-    body: {
-      name,
-      icon: SUB_LIST_ICON,
-      type: 'manual',
-      parentId,
-    },
+    body: buildGroupCreateBody(group),
   });
   if (created.error || !created.data) {
     return { id: null, status: created.response.status };
@@ -124,22 +119,22 @@ async function parentListIsGone(parentId: string): Promise<boolean> {
   }
 }
 
-async function resolveSubList(name: string): Promise<string> {
+async function resolveSubList(group: Omit<NewGroup, 'parentId'>): Promise<string> {
   const parentId = await ensureTabGroupsList();
-  const first = await createSubList(parentId, name);
+  const first = await createSubList({ ...group, parentId });
   if (first.id) return first.id;
 
   if (!(await parentListIsGone(parentId))) {
-    throw new Error(`Failed to create sub-list "${name}" (HTTP ${first.status}).`);
+    throw new Error(`Failed to create sub-list "${group.name}" (HTTP ${first.status}).`);
   }
 
   await invalidateTabGroupsList();
   const freshParentId = await ensureTabGroupsList();
-  const second = await createSubList(freshParentId, name);
+  const second = await createSubList({ ...group, parentId: freshParentId });
   if (second.id) return second.id;
 
   throw new Error(
-    `Failed to create sub-list "${name}" under a re-resolved "${PARENT_LIST_NAME}" (HTTP ${second.status}).`,
+    `Failed to create sub-list "${group.name}" under a re-resolved "${PARENT_LIST_NAME}" (HTTP ${second.status}).`,
   );
 }
 
@@ -261,7 +256,11 @@ async function runJob(job: SaveJob): Promise<SaveResult> {
     // A failure here used to clear the job record, on the assumption that nothing had been
     // created yet. That does not hold when the request reached Karakeep and only the
     // response was lost, so the record stays and its staleness bound retires it instead.
-    subListId = await resolveSubList(job.subListName);
+    subListId = await resolveSubList({
+      name: job.subListName,
+      tabCount: job.tabs.length,
+      savedAt: job.startedAt,
+    });
     job.subListId = subListId;
     await writer.flush();
   }

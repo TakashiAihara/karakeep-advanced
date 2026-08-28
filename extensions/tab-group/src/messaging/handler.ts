@@ -109,6 +109,7 @@ export async function handle(request: Request): Promise<Response> {
           opened: result.opened,
           total: result.total,
           consumed: result.consumed,
+          truncated: result.truncated,
         };
       }
 

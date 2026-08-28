@@ -4,7 +4,10 @@ import { formatGroupDescription, readGroupMetadata } from '@/src/karakeep/group-
 import { deleteGroup } from './delete-group';
 
 const PAGE_LIMIT = 100;
-const MAX_PAGES = 20;
+// A ceiling exists only so a server that never stops returning a cursor cannot spin
+// forever. Reaching it is reported rather than swallowed: silently opening 2,000 of a
+// group's tabs and calling it the whole group is the kind of wrong that is never noticed.
+const MAX_PAGES = 100;
 
 export type OpenGroupTarget = 'current' | 'new';
 
@@ -13,9 +16,11 @@ export type OpenGroupResult = {
   total: number;
   target: OpenGroupTarget;
   consumed: boolean;
+  /** The group had more bookmarks than MAX_PAGES could read; `total` undercounts. */
+  truncated: boolean;
 };
 
-async function fetchUrls(listId: string): Promise<string[]> {
+async function fetchUrls(listId: string): Promise<{ urls: string[]; truncated: boolean }> {
   const client = getKarakeep();
   const urls: string[] = [];
   let cursor: string | undefined;
@@ -33,11 +38,11 @@ async function fetchUrls(listId: string): Promise<string[]> {
     for (const bookmark of data.bookmarks) {
       if (bookmark.content.type === 'link') urls.push(bookmark.content.url);
     }
-    if (!data.nextCursor) break;
+    if (!data.nextCursor) return { urls, truncated: false };
     cursor = data.nextCursor;
   }
 
-  return urls;
+  return { urls, truncated: true };
 }
 
 async function touchLastOpened(listId: string, openedAt: string): Promise<void> {
@@ -64,9 +69,9 @@ export async function openGroup(
   options: OpenGroupOptions = {},
 ): Promise<OpenGroupResult> {
   const target = options.target ?? 'current';
-  const urls = await fetchUrls(listId);
+  const { urls, truncated } = await fetchUrls(listId);
   if (urls.length === 0) {
-    return { opened: 0, total: 0, target, consumed: false };
+    return { opened: 0, total: 0, target, consumed: false, truncated };
   }
 
   let opened = 0;
@@ -80,10 +85,10 @@ export async function openGroup(
     }
   }
 
-  // Only consume once every tab is actually open. Deleting first would turn a failure
-  // halfway through opening into a group that is gone and only partly restored.
+  // Only consume once every tab is actually open, and never when the read was truncated:
+  // deleting a group whose tail was never fetched destroys the part nobody saw.
   let consumed = false;
-  if (options.consume && opened === urls.length) {
+  if (options.consume && !truncated && opened === urls.length) {
     await deleteGroup(listId);
     consumed = true;
   } else {
@@ -96,5 +101,5 @@ export async function openGroup(
     }
   }
 
-  return { opened, total: urls.length, target, consumed };
+  return { opened, total: urls.length, target, consumed, truncated };
 }

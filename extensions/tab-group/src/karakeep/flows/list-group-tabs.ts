@@ -2,7 +2,9 @@ import { getKarakeep } from '@/src/karakeep/client';
 import type { GroupTab } from '@/src/messaging/schema';
 
 const PAGE_LIMIT = 100;
-const MAX_PAGES = 20;
+// See open-group.ts: the ceiling guards against an endless cursor, and hitting it is
+// reported rather than swallowed.
+const MAX_PAGES = 100;
 
 /**
  * Read the bookmarks of one group.

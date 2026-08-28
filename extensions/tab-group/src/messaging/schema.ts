@@ -77,7 +77,7 @@ export type Response =
   | { type: 'SEARCH_RESULT'; hits: SearchHit[]; nextCursor: string | null }
   | { type: 'RECENT_GROUPS'; groups: GroupSummary[]; stale: boolean }
   | { type: 'GROUP_TABS'; listId: string; tabs: GroupTab[] }
-  | { type: 'OPENED'; opened: number; total: number; consumed: boolean }
+  | { type: 'OPENED'; opened: number; total: number; consumed: boolean; truncated: boolean }
   | { type: 'IMPORTED'; summary: ImportSummary }
   | { type: 'RENAMED'; listId: string; name: string }
   | { type: 'DELETED'; listId: string }
