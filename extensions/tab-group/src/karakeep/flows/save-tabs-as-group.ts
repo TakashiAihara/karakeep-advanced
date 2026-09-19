@@ -241,7 +241,27 @@ async function closeSavedTabs(tabs: readonly SaveJobTab[]): Promise<number> {
   }
 }
 
+// Held only in worker memory on purpose: if the worker dies mid-save the flag dies with it,
+// which is exactly when the stored job becomes safe to resume.
+let runningJobId: string | null = null;
+
+export function isJobRunning(): boolean {
+  return runningJobId !== null;
+}
+
 async function runJob(job: SaveJob): Promise<SaveResult> {
+  if (runningJobId) {
+    throw new Error('A save is already in progress. Wait for it to finish.');
+  }
+  runningJobId = job.jobId;
+  try {
+    return await runJobUnguarded(job);
+  } finally {
+    runningJobId = null;
+  }
+}
+
+async function runJobUnguarded(job: SaveJob): Promise<SaveResult> {
   const writer = createJobWriter(job);
 
   for (const tab of job.tabs) {
@@ -317,7 +337,9 @@ export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult>
   const pending = await getPendingJob();
   if (pending) {
     throw new Error(
-      `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
+      isJobRunning()
+        ? `A save of "${pending.subListName}" is in progress. Wait for it to finish.`
+        : `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
     );
   }
 

@@ -60,6 +60,8 @@ export type MockStore = {
   listBookmarks: Map<string, Set<string>>;
   /** URLs whose POST /bookmarks answers 500, to drive a half-failed save. */
   failBookmarkUrls: Set<string>;
+  /** Added before every POST /bookmarks answer, to hold a save in progress. */
+  bookmarkDelayMs: number;
 };
 
 export type MockServer = {
@@ -125,6 +127,7 @@ export function startMockServer(): Promise<MockServer> {
     bookmarks: new Map(),
     listBookmarks: new Map(),
     failBookmarkUrls: new Set(),
+    bookmarkDelayMs: 0,
   };
   let counter = 0;
 
@@ -263,6 +266,9 @@ export function startMockServer(): Promise<MockServer> {
           title?: string;
           source?: MockBookmark['source'];
         };
+        if (store.bookmarkDelayMs > 0) {
+          await new Promise((r) => setTimeout(r, store.bookmarkDelayMs));
+        }
         if (store.failBookmarkUrls.has(body.url)) {
           writeJson(res, 500, { code: 'INTERNAL_SERVER_ERROR', message: 'injected failure' });
           return;

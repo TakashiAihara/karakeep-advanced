@@ -83,6 +83,6 @@ export type Response =
   | { type: 'IMPORTED'; summary: ImportSummary }
   | { type: 'RENAMED'; listId: string; name: string }
   | { type: 'DELETED'; listId: string }
-  | { type: 'PENDING_JOB'; job: SaveJob | null }
+  | { type: 'PENDING_JOB'; job: SaveJob | null; running: boolean }
   | { type: 'LAST_REPORT'; report: SaveReport | null }
   | { type: 'ERROR'; message: string; code?: 'UNCONFIGURED' | 'NO_TABS' | 'KARAKEEP' };

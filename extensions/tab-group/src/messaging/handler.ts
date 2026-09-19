@@ -8,6 +8,7 @@ import { openGroup } from '@/src/karakeep/flows/open-group';
 import { renameGroup } from '@/src/karakeep/flows/rename-group';
 import {
   getPendingJob,
+  isJobRunning,
   resumeSaveJob,
   retryFailedTabs,
   saveTabsAsGroup,
@@ -129,7 +130,7 @@ export async function handle(request: Request): Promise<Response> {
       }
 
       case 'GET_PENDING_JOB': {
-        return { type: 'PENDING_JOB', job: await getPendingJob() };
+        return { type: 'PENDING_JOB', job: await getPendingJob(), running: isJobRunning() };
       }
 
       case 'RESUME_JOB': {
@@ -139,8 +140,10 @@ export async function handle(request: Request): Promise<Response> {
       }
 
       case 'DISCARD_JOB': {
+        // the running writer would put the record straight back (#44 S5)
+        if (isJobRunning()) throw new Error('A save is in progress and cannot be discarded.');
         await saveJobItem.setValue(null);
-        return { type: 'PENDING_JOB', job: null };
+        return { type: 'PENDING_JOB', job: null, running: false };
       }
 
       case 'RETRY_FAILED': {

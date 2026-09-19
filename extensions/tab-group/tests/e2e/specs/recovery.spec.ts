@@ -114,3 +114,31 @@ test('Discard clears an unfinished save without writing it', async ({
   );
   expect((stored as { saveJob?: unknown }).saveJob ?? null).toBeNull();
 });
+
+test('A save in progress is shown as running, with no Resume that would run it twice', async ({
+  context,
+  extensionId,
+  configuredMock,
+}) => {
+  const tab = await context.newPage();
+  await tab.goto(`${configuredMock.url}/page/slow`);
+  configuredMock.store.bookmarkDelayMs = 2_000;
+
+  const first = await context.newPage();
+  await first.goto(`chrome-extension://${extensionId}/popup.html`);
+  await first.getByRole('button', { name: 'Save without closing' }).click();
+  await expect(first.getByRole('button', { name: 'Saving…' })).toBeVisible();
+
+  const second = await context.newPage();
+  await second.goto(`chrome-extension://${extensionId}/popup.html`);
+  const recovery = second.locator('.status.recovery');
+  await expect(recovery).toContainText('Saving');
+  await expect(second.getByRole('button', { name: 'Resume' })).toHaveCount(0);
+
+  await second.getByRole('button', { name: 'Save without closing' }).click();
+  await expect(second.locator('.status.error')).toContainText('in progress');
+
+  await expect(first.locator('.status.success')).toContainText('Saved 1/1');
+  const subLists = [...configuredMock.store.lists.values()].filter((l) => l.parentId != null);
+  expect(subLists.length).toBe(1);
+});

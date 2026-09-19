@@ -14,6 +14,7 @@ import { describeFailure } from '../describe-failure';
  */
 export default function SaveRecovery() {
   const [job, setJob] = useState<SaveJob | null>(null);
+  const [running, setRunning] = useState(false);
   const [report, setReport] = useState<SaveReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export default function SaveRecovery() {
       sendRequest({ type: 'GET_LAST_REPORT' }),
     ]);
     setJob(pending.type === 'PENDING_JOB' ? pending.job : null);
+    setRunning(pending.type === 'PENDING_JOB' && pending.running);
     setReport(last.type === 'LAST_REPORT' ? last.report : null);
   }
 
@@ -56,6 +58,16 @@ export default function SaveRecovery() {
       `Discard the unfinished save of "${job.subListName}"? Bookmarks already written to Karakeep stay there.`,
     );
     if (ok) void run({ type: 'DISCARD_JOB' });
+  }
+
+  if (job && running) {
+    return (
+      <div className="status recovery" role="status">
+        <p>
+          Saving <strong>{job.subListName}</strong>… Reopen the popup to see the result.
+        </p>
+      </div>
+    );
   }
 
   if (job) {
