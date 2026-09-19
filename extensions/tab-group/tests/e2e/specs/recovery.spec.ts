@@ -3,6 +3,7 @@ import { test, expect } from '../fixtures/extension';
 test('Retry failed finishes a half-failed Save & close and closes every tab', async ({
   context,
   extensionId,
+  serviceWorker,
   configuredMock,
 }) => {
   const okUrl = `${configuredMock.url}/page/ok`;
@@ -34,6 +35,38 @@ test('Retry failed finishes a half-failed Save & close and closes every tab', as
   expect(configuredMock.store.listBookmarks.get(subLists[0]!.id)?.size).toBe(2);
 
   await expect.poll(() => a.isClosed() && b.isClosed()).toBe(true);
+
+  const { lastSaveReport } = (await serviceWorker.evaluate(
+    // @ts-expect-error chrome global is available inside the extension service worker
+    () => chrome.storage.local.get('lastSaveReport'),
+  )) as { lastSaveReport: { totalCount: number; savedCount: number; failed: unknown[] } };
+  expect(lastSaveReport.totalCount).toBe(2);
+  expect(lastSaveReport.savedCount).toBe(2);
+  expect(lastSaveReport.failed).toEqual([]);
+});
+
+test('Dismiss hides a failed report without retrying it', async ({
+  context,
+  extensionId,
+  configuredMock,
+}) => {
+  const url = `${configuredMock.url}/page/gone`;
+  const tab = await context.newPage();
+  await tab.goto(url);
+  configuredMock.store.failBookmarkUrls.add(url);
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Save without closing' }).click();
+  const recovery = popup.locator('.status.recovery');
+  await expect(recovery).toContainText('1 of 1 failed');
+
+  await popup.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(recovery).toHaveCount(0);
+  await popup.reload();
+  await expect(popup.locator('.count')).toBeVisible();
+  await expect(recovery).toHaveCount(0);
+  expect(configuredMock.store.bookmarks.size).toBe(0);
 });
 
 async function seedUnfinishedJob(
@@ -138,7 +171,46 @@ test('A save in progress is shown as running, with no Resume that would run it t
   await second.getByRole('button', { name: 'Save without closing' }).click();
   await expect(second.locator('.status.error')).toContainText('in progress');
 
+  // messages a stale popup or a second window could still send
+  const replies = await second.evaluate(async () => {
+    const send = (type: string) =>
+      // @ts-expect-error chrome global is available inside the extension page
+      chrome.runtime.sendMessage({ type }) as Promise<{ type: string; message?: string }>;
+    return {
+      resume: await send('RESUME_JOB'),
+      retry: await send('RETRY_FAILED'),
+      discard: await send('DISCARD_JOB'),
+    };
+  });
+  expect(replies.resume).toMatchObject({ type: 'ERROR', message: expect.stringContaining('in progress') });
+  expect(replies.retry).toMatchObject({ type: 'ERROR', message: expect.stringContaining('in progress') });
+  expect(replies.discard).toMatchObject({ type: 'ERROR', message: expect.stringContaining('in progress') });
+
   await expect(first.locator('.status.success')).toContainText('Saved 1/1');
+  const subLists = [...configuredMock.store.lists.values()].filter((l) => l.parentId != null);
+  expect(subLists.length).toBe(1);
+});
+
+test('Two saves sent together write one group and keep the running job record', async ({
+  context,
+  extensionId,
+  configuredMock,
+}) => {
+  const tab = await context.newPage();
+  await tab.goto(`${configuredMock.url}/page/twice`);
+
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  const replies = await page.evaluate(async () => {
+    const save = () =>
+      // @ts-expect-error chrome global is available inside the extension page
+      chrome.runtime.sendMessage({ type: 'SAVE_WITHOUT_CLOSING', scope: 'all' }) as Promise<{
+        type: string;
+      }>;
+    return Promise.all([save(), save()]);
+  });
+
+  expect(replies.map((r) => r.type).sort()).toEqual(['ERROR', 'SAVED']);
   const subLists = [...configuredMock.store.lists.values()].filter((l) => l.parentId != null);
   expect(subLists.length).toBe(1);
 });

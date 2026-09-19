@@ -4,7 +4,6 @@ import type { Request } from '@/src/messaging/schema';
 import type { SaveJob, SaveReport } from '@/src/storage/items';
 import { describeFailure } from '../describe-failure';
 
-
 /**
  * The only way out of the two states a save can leave behind.
  *
@@ -55,7 +54,7 @@ export default function SaveRecovery() {
   function discard() {
     if (!job) return;
     const ok = window.confirm(
-      `Discard the unfinished save of "${job.subListName}"? Bookmarks already written to Karakeep stay there.`,
+      `Discard the unfinished save of "${job.subListName}"? The group and the bookmarks already written stay in Karakeep; the tabs that were not saved yet are dropped.`,
     );
     if (ok) void run({ type: 'DISCARD_JOB' });
   }
@@ -101,13 +100,18 @@ export default function SaveRecovery() {
         <details>
           <summary>Failed URLs</summary>
           <ul>
-            {report.failed.map((failure) => (
-              <li key={failure.url}>
+            {report.failed.map((failure, i) => (
+              <li key={`${i}:${failure.url}`}>
                 {failure.url} <span className="muted">— {failure.reason}</span>
               </li>
             ))}
           </ul>
         </details>
+        {report.closeAfter && (
+          <p className="muted">
+            Retrying closes the {report.totalCount} tabs of this save that are still open.
+          </p>
+        )}
         <div className="actions">
           <button
             type="button"
@@ -115,6 +119,14 @@ export default function SaveRecovery() {
             disabled={busy}
           >
             {busy ? 'Retrying…' : `Retry failed (${report.failed.length})`}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void run({ type: 'DISMISS_LAST_REPORT' })}
+            disabled={busy}
+          >
+            Dismiss
           </button>
         </div>
         {message && <p className="muted">{message}</p>}

@@ -25,9 +25,10 @@ export async function notify(title: string, message: string): Promise<void> {
  * One-line summary of a finished save, for the notification.
  *
  * Reads closeAfter rather than inferring intent from closedTabs. Inferring it was wrong on
- * three of the four paths that reach here: "save without closing", the context-menu
- * single-page save and the retry all leave tabs open by design, and telling the user they
- * were "left open so you can retry" invented a failure that had not happened.
+ * the paths that leave tabs open by design ("save without closing", the context-menu
+ * single-page save, and a retry of either), where telling the user they were "left open
+ * so you can retry" invented a failure that had not happened. A retry of "save and close"
+ * carries closeAfter and closes the set once it completes.
  *
  * A close that asked for N tabs and got fewer is reported explicitly. Tabs are only closed
  * when nothing failed, and a captured tab whose URL has drifted since is skipped, so the

@@ -241,27 +241,43 @@ async function closeSavedTabs(tabs: readonly SaveJobTab[]): Promise<number> {
   }
 }
 
-// Held only in worker memory on purpose: if the worker dies mid-save the flag dies with it,
-// which is exactly when the stored job becomes safe to resume.
+// Both live only in worker memory. A worker that dies mid-save takes them with it, so a
+// stored job found while they are unset was interrupted rather than running.
+//
+// The lock is taken synchronously when a save entry point is called, before its first
+// await: two saves sent together would otherwise both pass the pending-job check, and the
+// second would overwrite the record of the one already writing to Karakeep.
+let saveLocked = false;
 let runningJobId: string | null = null;
 
-export function isJobRunning(): boolean {
-  return runningJobId !== null;
+export function isJobRunning(jobId: string): boolean {
+  return runningJobId === jobId;
+}
+
+function exclusive<A extends unknown[]>(
+  fn: (...args: A) => Promise<SaveResult>,
+): (...args: A) => Promise<SaveResult> {
+  return async (...args) => {
+    if (saveLocked) throw new Error('A save is already in progress. Wait for it to finish.');
+    saveLocked = true;
+    try {
+      return await fn(...args);
+    } finally {
+      saveLocked = false;
+    }
+  };
 }
 
 async function runJob(job: SaveJob): Promise<SaveResult> {
-  if (runningJobId) {
-    throw new Error('A save is already in progress. Wait for it to finish.');
-  }
   runningJobId = job.jobId;
   try {
-    return await runJobUnguarded(job);
+    return await runJobSteps(job);
   } finally {
     runningJobId = null;
   }
 }
 
-async function runJobUnguarded(job: SaveJob): Promise<SaveResult> {
+async function runJobSteps(job: SaveJob): Promise<SaveResult> {
   const writer = createJobWriter(job);
 
   for (const tab of job.tabs) {
@@ -329,7 +345,7 @@ export type SaveOptions = {
   overrides?: SaveOverrides;
 };
 
-export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult> {
+export const saveTabsAsGroup = exclusive(async (options: SaveOptions) => {
   // Starting a fresh save used to overwrite an unfinished one. Pressing the shortcut again
   // is the natural reaction to a save that appeared to stall, and it is the only affordance
   // on that path, so the record of what was already written to Karakeep was destroyed by
@@ -337,9 +353,7 @@ export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult>
   const pending = await getPendingJob();
   if (pending) {
     throw new Error(
-      isJobRunning()
-        ? `A save of "${pending.subListName}" is in progress. Wait for it to finish.`
-        : `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
+      `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
     );
   }
 
@@ -370,26 +384,27 @@ export async function saveTabsAsGroup(options: SaveOptions): Promise<SaveResult>
   await saveJobItem.setValue(job);
 
   return runJob(job);
-}
+});
 
 export async function getPendingJob(): Promise<SaveJob | null> {
   const job = await saveJobItem.getValue();
   if (!job || job.finishedAt) return null;
 
-  if (isJobStale(job.startedAt, Date.now())) {
+  // a resumed job keeps its original startedAt, so it can cross the bound while running
+  if (!isJobRunning(job.jobId) && isJobStale(job.startedAt, Date.now())) {
     await saveJobItem.setValue(null);
     return null;
   }
   return job;
 }
 
-export async function resumeSaveJob(): Promise<SaveResult> {
+export const resumeSaveJob = exclusive(async () => {
   const job = await getPendingJob();
   if (!job) {
     throw new Error('There is no unfinished save to resume.');
   }
   return runJob(job);
-}
+});
 
 /**
  * Re-send only the tabs that failed in the last finished save.
@@ -401,9 +416,10 @@ export async function resumeSaveJob(): Promise<SaveResult> {
  *
  * The job is rebuilt from every tab of the report, not only the failed ones: runJob skips
  * the attached tabs, and keeping them is what lets a half-failed "save and close" close the
- * whole set once the retry succeeds and report the group's real totals.
+ * whole set once the retry succeeds and report the group's real totals. That close covers
+ * every tab of the original save still open at its URL, however long ago the save ran.
  */
-export async function retryFailedTabs(): Promise<SaveResult> {
+export const retryFailedTabs = exclusive(async () => {
   const pending = await getPendingJob();
   if (pending) {
     throw new Error(
@@ -432,4 +448,4 @@ export async function retryFailedTabs(): Promise<SaveResult> {
   await saveJobItem.setValue(job);
 
   return runJob(job);
-}
+});

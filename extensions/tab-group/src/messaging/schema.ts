@@ -72,7 +72,8 @@ export type Request =
   | { type: 'RESUME_JOB' }
   | { type: 'DISCARD_JOB' }
   | { type: 'RETRY_FAILED' }
-  | { type: 'GET_LAST_REPORT' };
+  | { type: 'GET_LAST_REPORT' }
+  | { type: 'DISMISS_LAST_REPORT' };
 
 export type Response =
   | { type: 'SAVED'; result: SaveResult }

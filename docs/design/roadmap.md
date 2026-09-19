@@ -65,13 +65,13 @@ popup は 360px 幅・Recent 20 件固定で、OneTab の中核操作
 
 | # | 項目 | 根拠 | 規模 |
 |---|---|---|---|
-| M1-1 | 保存ジョブを `chrome.storage.session` に永続化し、SW 再起動後に再開 or 警告 | 進捗の永続化が 0 (A2)。途中で落ちると孤児 sub-list ができ Recent にも出ない | M |
+| M1-1 | 保存ジョブを `chrome.storage.local` に永続化し、SW 再起動後に再開 or 警告 (ブラウザ再起動も越えるため session ではなく local) | 進捗の永続化が 0 (A2)。途中で落ちると孤児 sub-list ができ Recent にも出ない | M |
 | M1-2 | sub-list 作成を冪等にする (ジョブが持つ `subListId` を再利用) | 現状は無条件 POST (A3)。再試行のたびにゴミが積む | S |
 | M1-3 | popup 経由の保存にも通知を出す | 通知は shortcut / context menu 経路のみ (A1)。scope=all はウィンドウごと閉じるので成功 UI に構造的に到達できない (O-B) | S |
 | M1-4 | `client.ts` にリトライ + バックオフの middleware | リトライ機構が皆無 (A5) | M |
 | M1-5 | 失敗した URL だけを再送する UI | 設計ドキュメントが明記しているのに未実装 (P3) | M |
 | M1-6 | `runSave` の例外ハンドリング | try/catch が無く、message port が閉じると popup が固まる (A4) | S |
-| M1-7 | 最後の保存結果を storage に残し options に出す | 失敗 URL が popup を閉じた瞬間に消える | M |
+| M1-7 | 最後の保存結果を storage に残し popup の Save タブに出す (失敗分の Retry / Dismiss と同じ場所) | 失敗 URL が popup を閉じた瞬間に消える | M |
 
 `bookmark` の POST は重複 URL に 200 を返すので再送が安全 (K5 の裏返し)。
 危険なのは非冪等な sub-list 作成側なので、M1-2 を先に入れると M1-4 / M1-5 が安全になる。

@@ -130,7 +130,8 @@ export async function handle(request: Request): Promise<Response> {
       }
 
       case 'GET_PENDING_JOB': {
-        return { type: 'PENDING_JOB', job: await getPendingJob(), running: isJobRunning() };
+        const job = await getPendingJob();
+        return { type: 'PENDING_JOB', job, running: job ? isJobRunning(job.jobId) : false };
       }
 
       case 'RESUME_JOB': {
@@ -141,7 +142,10 @@ export async function handle(request: Request): Promise<Response> {
 
       case 'DISCARD_JOB': {
         // the running writer would put the record straight back (#44 S5)
-        if (isJobRunning()) throw new Error('A save is in progress and cannot be discarded.');
+        const job = await saveJobItem.getValue();
+        if (job && isJobRunning(job.jobId)) {
+          throw new Error('A save is in progress and cannot be discarded.');
+        }
         await saveJobItem.setValue(null);
         return { type: 'PENDING_JOB', job: null, running: false };
       }
@@ -154,6 +158,11 @@ export async function handle(request: Request): Promise<Response> {
 
       case 'GET_LAST_REPORT': {
         return { type: 'LAST_REPORT', report: await lastSaveReportItem.getValue() };
+      }
+
+      case 'DISMISS_LAST_REPORT': {
+        await lastSaveReportItem.setValue(null);
+        return { type: 'LAST_REPORT', report: null };
       }
     }
   } catch (err) {
