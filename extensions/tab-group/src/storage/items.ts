@@ -1,5 +1,5 @@
 import { storage } from 'wxt/utils/storage';
-import type { SaveJob } from './save-job';
+import type { SaveJob, SaveJobTab } from './save-job';
 import type { ListIndexCache } from './list-cache';
 
 export type { SaveJob, SaveJobTab, SaveJobTabState } from './save-job';
@@ -49,10 +49,13 @@ export type SaveReport = {
   subListId: string | null;
   subListName: string;
   scope: string;
+  closeAfter: boolean;
   savedCount: number;
   totalCount: number;
   closedTabs: number;
   failed: { url: string; reason: string }[];
+  /** Every tab of the save, so a retry can finish the close the original save skipped. */
+  tabs: SaveJobTab[];
   finishedAt: string;
 };
 

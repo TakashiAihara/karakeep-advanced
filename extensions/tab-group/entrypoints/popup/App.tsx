@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { browser } from 'wxt/browser';
 import ImportPanel from './components/ImportPanel';
 import RecentGroupsPanel from './components/RecentGroupsPanel';
+import SaveRecovery from './components/SaveRecovery';
+import { describeFailure } from './describe-failure';
 import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
 import type { SaveResult, SaveScope } from '@/src/messaging/schema';
@@ -36,20 +38,13 @@ const SCOPE_LABELS: Record<PopupScope, string> = {
 
 const SCOPE_ORDER: PopupScope[] = ['all', 'others', 'selected'];
 
-const WORKER_RESTART_MESSAGE =
-  'The background worker restarted before it replied, so the result is unknown. The save may have completed — check Recent before saving again.';
-
-function describeFailure(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error);
-  if (/message port closed/i.test(raw)) return WORKER_RESTART_MESSAGE;
-  return raw || 'Something went wrong.';
-}
 
 export default function App() {
   const [view, setView] = useState<View>('save');
   const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
   const [scope, setScope] = useState<PopupScope>('all');
   const [save, setSave] = useState<SaveUi>({ kind: 'idle' });
+  const [saveCount, setSaveCount] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -99,6 +94,8 @@ export default function App() {
       setSave({ kind: 'error', message: response.message });
     } catch (error) {
       setSave({ kind: 'error', message: describeFailure(error) });
+    } finally {
+      setSaveCount((n) => n + 1);
     }
   }
 
@@ -184,6 +181,9 @@ export default function App() {
 
       {view === 'save' && (
         <>
+          {/* remounted after every save so a fresh report or a new blocker shows up */}
+          <SaveRecovery key={saveCount} />
+
           <div className="scope" role="radiogroup" aria-label="Scope">
             {SCOPE_ORDER.map((s) => (
               <button

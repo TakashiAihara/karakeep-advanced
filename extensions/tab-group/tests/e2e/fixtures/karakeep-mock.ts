@@ -58,6 +58,8 @@ export type MockStore = {
   lists: Map<string, MockList>;
   bookmarks: Map<string, MockBookmark>;
   listBookmarks: Map<string, Set<string>>;
+  /** URLs whose POST /bookmarks answers 500, to drive a half-failed save. */
+  failBookmarkUrls: Set<string>;
 };
 
 export type MockServer = {
@@ -122,6 +124,7 @@ export function startMockServer(): Promise<MockServer> {
     lists: new Map(),
     bookmarks: new Map(),
     listBookmarks: new Map(),
+    failBookmarkUrls: new Set(),
   };
   let counter = 0;
 
@@ -168,7 +171,7 @@ export function startMockServer(): Promise<MockServer> {
         const list: MockList = {
           id,
           name: body.name,
-          description: null,
+          description: body.description ?? null,
           icon: body.icon,
           parentId: body.parentId ?? null,
           type: (body.type as ListType) ?? 'manual',
@@ -260,6 +263,10 @@ export function startMockServer(): Promise<MockServer> {
           title?: string;
           source?: MockBookmark['source'];
         };
+        if (store.failBookmarkUrls.has(body.url)) {
+          writeJson(res, 500, { code: 'INTERNAL_SERVER_ERROR', message: 'injected failure' });
+          return;
+        }
         const existing = [...store.bookmarks.values()].find(
           (b) => b.content.type === 'link' && b.content.url === body.url,
         );

@@ -295,6 +295,7 @@ async function runJob(job: SaveJob): Promise<SaveResult> {
   await lastSaveReportItem.setValue({
     ...result,
     scope: job.scope,
+    tabs: job.tabs,
     finishedAt: job.finishedAt,
   });
   await saveJobItem.setValue(null);
@@ -375,8 +376,19 @@ export async function resumeSaveJob(): Promise<SaveResult> {
  * saved report instead. The original sub-list is reused rather than created again: bookmark
  * creation is idempotent on the server (a duplicate URL returns the existing bookmark) but
  * list creation is not, so re-running the whole save would leave a second sub-list behind.
+ *
+ * The job is rebuilt from every tab of the report, not only the failed ones: runJob skips
+ * the attached tabs, and keeping them is what lets a half-failed "save and close" close the
+ * whole set once the retry succeeds and report the group's real totals.
  */
 export async function retryFailedTabs(): Promise<SaveResult> {
+  const pending = await getPendingJob();
+  if (pending) {
+    throw new Error(
+      `A save of "${pending.subListName}" is still unfinished. Resume or discard it first.`,
+    );
+  }
+
   const report = await lastSaveReportItem.getValue();
   if (!report || report.failed.length === 0) {
     throw new Error('There are no failed tabs to retry.');
@@ -388,19 +400,10 @@ export async function retryFailedTabs(): Promise<SaveResult> {
   const job: SaveJob = {
     jobId: crypto.randomUUID(),
     scope: report.scope,
-    closeAfter: false,
+    closeAfter: report.closeAfter,
     subListId: report.subListId,
     subListName: report.subListName,
-    tabs: report.failed.map(
-      (failure): SaveJobTab => ({
-        tabId: null,
-        url: failure.url,
-        title: '',
-        bookmarkId: null,
-        state: 'pending',
-        reason: null,
-      }),
-    ),
+    tabs: report.tabs.map((tab) => ({ ...tab })),
     startedAt: new Date().toISOString(),
     finishedAt: null,
   };
