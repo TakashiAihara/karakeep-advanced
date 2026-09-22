@@ -37,3 +37,9 @@ export async function ensureTabGroupsList(): Promise<string> {
   await tabGroupsListIdItem.setValue(created.data.id);
   return created.data.id;
 }
+
+// the cached id is otherwise trusted forever, so a parent deleted from the Karakeep UI
+// would break every later save with no way out from the extension
+export async function invalidateTabGroupsList(): Promise<void> {
+  await tabGroupsListIdItem.setValue(null);
+}

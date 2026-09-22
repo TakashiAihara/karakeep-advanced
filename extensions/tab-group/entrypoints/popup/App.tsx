@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { browser } from 'wxt/browser';
 import ImportPanel from './components/ImportPanel';
 import RecentGroupsPanel from './components/RecentGroupsPanel';
+import SaveRecovery from './components/SaveRecovery';
+import { describeFailure } from './describe-failure';
 import SearchPanel from './components/SearchPanel';
 import { sendRequest } from '@/src/messaging/send';
 import type { SaveResult, SaveScope } from '@/src/messaging/schema';
@@ -36,25 +38,34 @@ const SCOPE_LABELS: Record<PopupScope, string> = {
 
 const SCOPE_ORDER: PopupScope[] = ['all', 'others', 'selected'];
 
+
 export default function App() {
   const [view, setView] = useState<View>('save');
   const [ready, setReady] = useState<ReadyState>({ kind: 'loading' });
   const [scope, setScope] = useState<PopupScope>('all');
   const [save, setSave] = useState<SaveUi>({ kind: 'idle' });
+  const [saveCount, setSaveCount] = useState(0);
 
   useEffect(() => {
     void (async () => {
-      const [serverUrl, apiKey, tabs, excludePinned] = await Promise.all([
-        serverUrlItem.getValue(),
-        apiKeyItem.getValue(),
-        browser.tabs.query({ currentWindow: true }),
-        excludePinnedItem.getValue(),
-      ]);
-      if (!serverUrl || !apiKey) {
-        setReady({ kind: 'unconfigured' });
-        return;
+      try {
+        const [serverUrl, apiKey, tabs, excludePinned] = await Promise.all([
+          serverUrlItem.getValue(),
+          apiKeyItem.getValue(),
+          browser.tabs.query({ currentWindow: true }),
+          excludePinnedItem.getValue(),
+        ]);
+        if (!serverUrl || !apiKey) {
+          setReady({ kind: 'unconfigured' });
+          return;
+        }
+        setReady({ kind: 'ready', tabs, excludePinned });
+      } catch (error) {
+        // NOTE: leaving 'loading' would spin forever; an empty tab list disables every save button
+        // and lets the banner and the options link explain what happened.
+        setReady({ kind: 'ready', tabs: [], excludePinned: false });
+        setSave({ kind: 'error', message: describeFailure(error) });
       }
-      setReady({ kind: 'ready', tabs, excludePinned });
     })();
   }, []);
 
@@ -70,16 +81,28 @@ export default function App() {
 
   async function runSave(close: boolean) {
     setSave({ kind: 'saving' });
-    const response = await sendRequest(
-      close
-        ? { type: 'SAVE_AND_CLOSE', scope }
-        : { type: 'SAVE_WITHOUT_CLOSING', scope },
-    );
-    if (response.type === 'SAVED') {
-      setSave({ kind: 'success', result: response.result, closed: close });
-      return;
+    try {
+      const response = await sendRequest(
+        close
+          ? { type: 'SAVE_AND_CLOSE', scope }
+          : { type: 'SAVE_WITHOUT_CLOSING', scope },
+      );
+      if (response.type === 'SAVED') {
+        setSave({ kind: 'success', result: response.result, closed: close });
+        return;
+      }
+      setSave({ kind: 'error', message: response.message });
+    } catch (error) {
+      setSave({ kind: 'error', message: describeFailure(error) });
+    } finally {
+      setSaveCount((n) => n + 1);
     }
-    setSave({ kind: 'error', message: response.message });
+  }
+
+  function openOptions() {
+    void browser.runtime.openOptionsPage().catch((error: unknown) => {
+      setSave({ kind: 'error', message: describeFailure(error) });
+    });
   }
 
   if (ready.kind === 'loading') {
@@ -95,7 +118,8 @@ export default function App() {
       <main className="popup">
         <h1>Karakeep Advanced</h1>
         <p>Configure your Karakeep server URL and API key first.</p>
-        <button onClick={() => browser.runtime.openOptionsPage()}>Open Options</button>
+        <button onClick={openOptions}>Open Options</button>
+        {save.kind === 'error' && <div className="status error">{save.message}</div>}
       </main>
     );
   }
@@ -109,7 +133,7 @@ export default function App() {
         <button
           type="button"
           className="link"
-          onClick={() => browser.runtime.openOptionsPage()}
+          onClick={openOptions}
           aria-label="Open options"
         >
           ⚙
@@ -157,6 +181,9 @@ export default function App() {
 
       {view === 'save' && (
         <>
+          {/* remounted after every save so a fresh report or a new blocker shows up */}
+          <SaveRecovery key={saveCount} />
+
           <div className="scope" role="radiogroup" aria-label="Scope">
             {SCOPE_ORDER.map((s) => (
               <button
