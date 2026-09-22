@@ -107,7 +107,10 @@ async function createSubList(group: NewGroup): Promise<SubListAttempt> {
 
 // NOTE: schema.d.ts documents no status for creating a child of a deleted parent, so the
 // create failure is not evidence — ask about the parent, and treat anything but a definite
-// 404 as unknown
+// 404 as unknown.
+// Measured against Karakeep 0.31.0 on 2026-09-22: POST /lists with a deleted or unknown
+// parentId answers 500 "FOREIGN KEY constraint failed", and GET of that parent answers 404.
+// 500 is not in RETRYABLE_STATUSES, so the create is not retried before this runs.
 async function parentListIsGone(parentId: string): Promise<boolean> {
   try {
     const { error, response } = await getKarakeep().GET('/lists/{listId}', {
