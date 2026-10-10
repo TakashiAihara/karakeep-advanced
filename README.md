@@ -8,7 +8,7 @@ Future siblings (Highlight saver, Omnibox search, etc.) will share the same `kar
 
 ## Status
 
-WIP — scaffolding has not started yet. See [docs/karakeep-advanced.md](docs/karakeep-advanced.md) for the full Why / What / scope.
+The Tab Group extension (`extensions/tab-group/`) covers Phase 1 and 2: save / save & close, keyboard shortcuts, search, recent groups, OneTab import, context menus, rename / delete, and recovery of interrupted or half-failed saves. Install it unpacked by following [extensions/tab-group/README.md](extensions/tab-group/README.md#load-the-extension-in-chrome-manual-smoke-test-for-pr1). See [docs/design/roadmap.md](docs/design/roadmap.md) for what comes next.
 
 ## Docs
 
@@ -21,4 +21,4 @@ The official [`karakeep-app/karakeep` browser extension](https://github.com/kara
 
 ## License
 
-TBD.
+[MIT](LICENSE)
