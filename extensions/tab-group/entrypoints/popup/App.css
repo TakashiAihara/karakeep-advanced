@@ -414,3 +414,21 @@
     color: #fee2e2;
   }
 }
+
+.popup .status.recovery {
+  background: #fffbeb;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+
+.popup .status.recovery p {
+  margin: 0 0 6px;
+}
+
+.popup .status.recovery ul {
+  margin: 4px 0;
+  padding-left: 16px;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-all;
+}
